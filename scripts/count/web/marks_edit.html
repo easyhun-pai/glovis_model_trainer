@@ -1,0 +1,162 @@
+<title>COUNT 표식 박스 수정</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#f3f5f7;--panel:#fff;--panel-2:#e9edf1;--fg:#17212b;--mute:#5b6875;--line:#d5dce3;--accent:#0f5e8c;--on:#fff;--plate:#10161c;
+  --ok:#147a4b;--bad:#bb4a0c;--shadow:0 1px 2px rgba(23,33,43,.07);
+  --c0:#e8352c;--c1:#ffb000;--c2:#e040fb;
+  --sans:"IBM Plex Sans KR","Malgun Gothic",system-ui,sans-serif;--mono:"IBM Plex Mono",Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11161b;--panel:#1a2128;--panel-2:#252e36;--fg:#e8edf2;--mute:#9aa8b5;--line:#303b45;--accent:#6cb9e6;--on:#0d1419;--plate:#090c0f;
+  --ok:#55cf94;--bad:#f59a5e;--shadow:none;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161b;--panel:#1a2128;--panel-2:#252e36;--fg:#e8edf2;--mute:#9aa8b5;--line:#303b45;--accent:#6cb9e6;--on:#0d1419;--plate:#090c0f;
+  --ok:#55cf94;--bad:#f59a5e;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans);margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{position:sticky;top:0;z-index:3;background:var(--panel);border-bottom:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));display:grid;gap:7px}
+.row{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between}
+h1{font-size:17px;margin:0}
+#sync{font-size:13px;color:var(--mute)}#sync[data-s="err"]{color:var(--bad);font-weight:600}
+.bar{height:5px;background:var(--panel-2);border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.help{margin:0;color:var(--mute);font-size:13px}
+.help kbd{font:500 11.5px var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 4px;background:var(--panel-2);color:var(--fg)}
+main{padding:12px max(16px,env(safe-area-inset-right,0px)) 100px max(16px,env(safe-area-inset-left,0px));max-width:1100px;margin:0 auto}
+.info{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-bottom:8px;font-size:13px;color:var(--mute)}
+.info b{font:500 13px var(--mono);color:var(--fg)}
+.chip{border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600;background:var(--panel-2);color:var(--fg)}
+.chip.done{background:var(--ok);color:var(--on)}
+.stage{position:relative;background:var(--plate);border-radius:8px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair;box-shadow:var(--shadow)}
+.stage img{display:block;width:100%;height:auto;pointer-events:none}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.stage rect{fill:transparent;stroke-width:2.5;vector-effect:non-scaling-stroke;cursor:pointer}
+.stage rect.sel{stroke-width:4;stroke-dasharray:6 3;fill:rgba(255,255,255,.12)}
+.stage rect.draw{stroke-dasharray:4 3;pointer-events:none}
+.stage rect.hd{fill:#fff;stroke:#111;stroke-width:1}
+.xh{position:absolute;pointer-events:none;display:none;z-index:2}
+#xv{top:0;bottom:0;width:0;border-left:1px dashed rgba(255,255,255,.85);box-shadow:0 0 0 .5px rgba(0,0,0,.35)}
+#xhz{left:0;right:0;height:0;border-top:1px dashed rgba(255,255,255,.85);box-shadow:0 0 0 .5px rgba(0,0,0,.35)}
+.stage.xon .xh{display:block}.stage.erase .xh{display:none!important}
+.stage.erase{cursor:default}.stage.erase rect:hover{fill:rgba(255,60,60,.35)}
+.cls button.er.on{border-color:var(--bad);color:var(--bad)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.cls{display:flex;gap:4px}
+.cls button{border:2px solid var(--line);background:var(--panel);border-radius:6px;min-height:38px;padding:0 12px;font-weight:600}
+.cls button i{display:inline-block;width:11px;height:11px;border:3px solid;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.cls button.on{border-color:var(--fg);background:var(--panel-2)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;min-height:38px;padding:0 13px}.btn:disabled{opacity:.45;cursor:default}
+.btn.main{background:var(--accent);border-color:var(--accent);color:var(--on);font-weight:700;padding:0 18px}
+.btn.del{color:var(--bad);border-color:var(--bad)}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:3;background:var(--panel);border-top:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.nav{display:flex;gap:6px;align-items:center}.nav span{color:var(--mute);font:500 13px var(--mono);min-width:70px;text-align:center}
+.strip{display:flex;flex-wrap:wrap;gap:3px;margin-top:14px}
+.strip button{width:16px;height:16px;border:0;border-radius:3px;background:var(--panel-2);padding:0}
+.strip button.done{background:var(--ok)}.strip button.cur{outline:2px solid var(--fg);outline-offset:1px}
+</style>
+<header>
+  <div class="row"><h1>COUNT 표식 박스 수정</h1><span id="sync">연결 중</span></div>
+  <div class="bar"><i id="pb" style="width:0"></i></div>
+  <p class="help">빈 곳을 드래그하면 고른 종류로 박스가 생깁니다. 박스를 누르면 선택되고, 끌어서 옮기거나 흰 점을 끌어 크기를 바꿉니다. 선택한 박스는 <kbd>Del</kbd>로 지우고 <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>로 종류를 바꿉니다. <kbd>4</kbd> 지우기 모드에서는 박스를 누르면 바로 지워집니다. 다 됐으면 <kbd>Enter</kbd>(완료 후 다음). 50% 이상 보이는 표식만 박스, 그보다 가려졌거나 흐린 건 있어도 없어도 됩니다.</p>
+</header>
+<main>
+  <div class="info"><b id="nm"></b><span id="rv"></span><span class="chip" id="st"></span><span id="cnt"></span></div>
+  <div class="stage" id="stage"><img id="im" alt="크롭"><svg id="sv" xmlns="http://www.w3.org/2000/svg"></svg><i class="xh" id="xv"></i><i class="xh" id="xhz"></i></div>
+  <div class="tools">
+    <div class="cls" id="cls"></div>
+    <button class="btn del" id="del" type="button" disabled>선택 박스 지우기</button>
+    <button class="btn" id="undo" type="button" disabled>되돌리기</button>
+    <button class="btn" id="reset" type="button">초안으로</button>
+  </div>
+  <div class="strip" id="strip"></div>
+</main>
+<div class="dock">
+  <div class="nav"><button class="btn" id="prev" type="button">이전</button><span id="pg">0/0</span><button class="btn" id="next" type="button">다음</button></div>
+  <button class="btn main" id="done" type="button">완료 후 다음</button>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const CN=['번호판','경광등','창문 번호'],CC=['var(--c0)','var(--c1)','var(--c2)'];
+const RV={miss:'1차 검수: 빠진 표식',both:'1차 검수: 틀린 박스 + 빠진 표식',wrong:'1차 검수: 틀린 박스',ok:'1차 검수: 정확'};
+let M=null,S={},pend={},db=null,canSave=false,idx=0,cls=2,sel=-1,boxes=[],hist=[],timer=null,drag=null;
+function sync(t,s){const e=$('sync');e.textContent=t;e.dataset.s=s||''}
+const it=()=>M.items[idx];
+function load(){const x=it(),s=S[x.k];boxes=(s&&s.b?s.b:x.b).map(b=>b.slice());hist=[];sel=-1;
+  $('im').src=x.img;$('stage').style.aspectRatio=`${x.w}/${x.h}`;$('sv').setAttribute('viewBox',`0 0 ${x.w} ${x.h}`);render()}
+function render(){
+  const x=it(),s=S[x.k],dn=M.items.filter(i=>S[i.k]&&S[i.k].d).length;
+  $('pb').style.width=`${dn/M.items.length*100}%`;$('pg').textContent=`${idx+1}/${M.items.length}`;
+  $('nm').textContent=x.n;$('rv').textContent=RV[x.r]||'';const st=$('st');st.textContent=s&&s.d?'완료':'미완료';st.className='chip'+(s&&s.d?' done':'');
+  const c=[0,0,0];boxes.forEach(b=>c[b[0]]++);$('cnt').textContent=`박스 ${boxes.length} (번호판 ${c[0]}, 경광등 ${c[1]}, 번호 ${c[2]})`;
+  $('cls').replaceChildren(...[...CN,'지우기'].map((n,k)=>{const b=document.createElement('button');b.type='button';b.className=(k===cls?'on':'')+(k===3?' er':'');const i=document.createElement('i');i.style.borderColor=k<3?CC[k]:'var(--bad)';b.append(i,`${k+1} ${n}`);b.onclick=()=>setCls(k);return b}));
+  $('stage').classList.toggle('erase',cls===3);
+  drawSvg();
+  $('del').disabled=sel<0;$('undo').disabled=!hist.length;$('prev').disabled=idx===0;$('next').disabled=idx>=M.items.length-1;$('done').disabled=!canSave;
+  $('strip').replaceChildren(...M.items.map((i,k)=>{const b=document.createElement('button');b.type='button';b.title=`${k+1}`;b.setAttribute('aria-label',`${k+1}번`);b.className=(S[i.k]&&S[i.k].d?'done':'')+(k===idx?' cur':'');b.onclick=()=>go(k);return b}))}
+const NS='http://www.w3.org/2000/svg';
+function svgRect(x1,y1,x2,y2){const r=document.createElementNS(NS,'rect');r.setAttribute('x',x1);r.setAttribute('y',y1);r.setAttribute('width',Math.max(0,x2-x1));r.setAttribute('height',Math.max(0,y2-y1));return r}
+function drawSvg(){const sv=$('sv'),x=it(),px=x.w/Math.max(1,$('stage').getBoundingClientRect().width);let hs=7*px;
+  const els=boxes.map((b,k)=>{const r=svgRect(b[1],b[2],b[3],b[4]);r.style.stroke=CC[b[0]];if(k===sel)r.classList.add('sel');
+    r.addEventListener('pointerdown',e=>{if(e.button)return;e.stopPropagation();
+      if(cls===3){push();boxes.splice(k,1);sel=-1;mark();render();return}
+      sel=k;startDrag(e,{t:'move',k,p:pt(e),o:boxes[k].slice()});render()});return r});
+  if(sel>=0&&cls!==3){const b=boxes[sel],mx=(b[1]+b[3])/2,my=(b[2]+b[4])/2,side=Math.min(b[3]-b[1],b[4]-b[2]);hs=Math.max(4*px,Math.min(hs,side/3));
+    const H=[['nw',b[1],b[2]],['ne',b[3],b[2]],['se',b[3],b[4]],['sw',b[1],b[4]]];if(side>=hs*5)H.push(['n',mx,b[2]],['e',b[3],my],['s',mx,b[4]],['w',b[1],my]);
+    for(const[h,cx,cy]of H){
+      const r=svgRect(cx-hs/2,cy-hs/2,cx+hs/2,cy+hs/2);r.classList.add('hd');r.style.cursor=({n:'ns',s:'ns',e:'ew',w:'ew',nw:'nwse',se:'nwse',ne:'nesw',sw:'nesw'})[h]+'-resize';
+      r.addEventListener('pointerdown',e=>{if(e.button)return;e.stopPropagation();startDrag(e,{t:'size',k:sel,h,p:pt(e),o:boxes[sel].slice()})});els.push(r)}}
+  if(drag&&drag.r)els.push(drag.r);sv.replaceChildren(...els)}
+function startDrag(e,d){d.snap=boxes.map(b=>b.slice());drag=d;$('stage').setPointerCapture(e.pointerId)}
+function push(){hist.push(boxes.map(b=>b.slice()));if(hist.length>50)hist.shift()}
+function setCls(k){cls=k;if(k===3)sel=-1;else if(sel>=0){push();boxes[sel][0]=k;mark()}render()}
+function mark(){const x=it();S[x.k]={b:boxes.map(b=>b.slice()),d:S[x.k]?.d||0};pend[x.k]=S[x.k];schedule()}
+function pt(e){const r=$('stage').getBoundingClientRect(),x=it();return[Math.max(0,Math.min(x.w,(e.clientX-r.left)/r.width*x.w)),Math.max(0,Math.min(x.h,(e.clientY-r.top)/r.height*x.h))]}
+$('stage').addEventListener('pointerdown',e=>{if(e.button||cls===3)return;const p=pt(e);sel=-1;const r=svgRect(p[0],p[1],p[0],p[1]);r.classList.add('draw');r.style.stroke=CC[cls];startDrag(e,{t:'new',p,q:p,r});render()});
+function cross(e){const st=$('stage'),r=st.getBoundingClientRect();if(e.pointerType==='touch'&&!drag){st.classList.remove('xon');return}
+  $('xv').style.left=`${Math.max(0,Math.min(r.width,e.clientX-r.left))}px`;$('xhz').style.top=`${Math.max(0,Math.min(r.height,e.clientY-r.top))}px`;st.classList.add('xon')}
+$('stage').addEventListener('pointerleave',()=>{if(!drag)$('stage').classList.remove('xon')});
+$('stage').addEventListener('pointermove',e=>{cross(e);if(!drag)return;const q=pt(e),x=it();drag.q=q;const[a,b]=drag.p;
+  if(drag.t==='new'){const r=drag.r;r.setAttribute('x',Math.min(a,q[0]));r.setAttribute('y',Math.min(b,q[1]));r.setAttribute('width',Math.abs(q[0]-a));r.setAttribute('height',Math.abs(q[1]-b));return}
+  const o=drag.o,dx=q[0]-a,dy=q[1]-b,n=o.slice();
+  if(drag.t==='move'){const w=o[3]-o[1],h=o[4]-o[2];n[1]=Math.max(0,Math.min(x.w-w,o[1]+dx));n[2]=Math.max(0,Math.min(x.h-h,o[2]+dy));n[3]=n[1]+w;n[4]=n[2]+h}
+  else{const h=drag.h;if(h.includes('w'))n[1]=o[1]+dx;if(h.includes('e'))n[3]=o[3]+dx;if(h.includes('n'))n[2]=o[2]+dy;if(h.includes('s'))n[4]=o[4]+dy;
+    const xs=[n[1],n[3]].sort((p,r)=>p-r),ys=[n[2],n[4]].sort((p,r)=>p-r);n[1]=xs[0];n[3]=xs[1];n[2]=ys[0];n[4]=ys[1]}
+  boxes[drag.k]=n.map((v,i)=>i?Math.round(v):v);drag.moved=true;drawSvg()});
+const end=()=>{if(!drag)return;const d=drag,x=it(),mn=Math.max(4,x.w/150);drag=null;
+  if(d.t==='new'){const[a,b]=d.p,[c,e]=d.q;if(Math.abs(c-a)>=mn&&Math.abs(e-b)>=mn){push();boxes.push([cls,Math.round(Math.min(a,c)),Math.round(Math.min(b,e)),Math.round(Math.max(a,c)),Math.round(Math.max(b,e))]);sel=boxes.length-1;mark()}}
+  else if(d.moved){const b=boxes[d.k];if(b[3]-b[1]<mn||b[4]-b[2]<mn)boxes[d.k]=d.o;else{hist.push(d.snap);if(hist.length>50)hist.shift();mark()}}
+  render()};
+$('stage').addEventListener('pointerup',end);$('stage').addEventListener('pointercancel',()=>{drag=null;render()});
+function delSel(){if(sel<0)return;push();boxes.splice(sel,1);sel=-1;mark();render()}
+$('del').onclick=delSel;
+$('undo').onclick=()=>{if(!hist.length)return;boxes=hist.pop();sel=-1;mark();render()};
+$('reset').onclick=()=>{push();boxes=it().b.map(b=>b.slice());sel=-1;mark();render()};
+function go(k){idx=Math.max(0,Math.min(M.items.length-1,k));load();scrollTo(0,0)}
+$('prev').onclick=()=>go(idx-1);$('next').onclick=()=>go(idx+1);
+function done(){if(!canSave)return;const x=it();S[x.k]={b:boxes.map(b=>b.slice()),d:1};pend[x.k]=S[x.k];schedule();
+  const nx=M.items.findIndex((i,k)=>k>idx&&!(S[i.k]&&S[i.k].d));go(nx>=0?nx:Math.min(idx+1,M.items.length-1))}
+$('done').onclick=done;
+addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea'))return;
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();delSel()}else if(e.key==='Enter'){e.preventDefault();done()}
+  else if(e.key==='ArrowRight')go(idx+1);else if(e.key==='ArrowLeft')go(idx-1);
+  else if(['1','2','3','4'].includes(e.key))setCls(+e.key-1);else if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();$('undo').click()}});
+function schedule(){sync('저장 중');clearTimeout(timer);timer=setTimeout(flush,300)}
+async function flush(){if(!db)return;const d=pend;pend={};if(!Object.keys(d).length)return;
+  try{const ref=db.doc('edit/r2');try{await ref.update({m:d})}catch(e){if(e.code!=='invalid_argument'&&e.code!=='not_found')throw e;await ref.set({m:{...S}})}sync('저장됨')}
+  catch{Object.assign(pend,d,pend);sync('저장 실패','err');clearTimeout(timer);timer=setTimeout(flush,4000)}}
+const flushNow=()=>{if(Object.keys(pend).length){clearTimeout(timer);flush()}};addEventListener('pagehide',flushNow);document.addEventListener('visibilitychange',()=>{if(document.hidden)flushNow()});
+(async()=>{
+  try{M=await (await fetch('items.json')).json()}catch{$('nm').textContent='데이터를 불러오지 못했습니다. 새로고침해 주세요.';return}
+  load();
+  const t=setTimeout(()=>{if(!db)sync('저장 불가 (로그인 필요)','err')},10000);
+  try{db=window.claude?.use?await claude.use('db'):null}catch{db=null}
+  if(!db){clearTimeout(t);sync('저장 불가 (로그인 필요)','err');return}
+  let first=true;
+  db.collection('edit').onSnapshot(s=>{if(s.metadata.fromCache)return;clearTimeout(t);const d=s.docs.find(x=>x.id==='r2');S={...((d&&d.data().m)||{}),...pend};
+    if(first){first=false;canSave=true;sync('저장됨');const nx=M.items.findIndex(i=>!(S[i.k]&&S[i.k].d));if(nx>0){idx=nx}load();return}
+    if(!drag)render()},
+    ()=>{clearTimeout(t);canSave=false;sync('저장소 연결 끊김','err');render()})})();
+</script>

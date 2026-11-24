@@ -1,0 +1,163 @@
+<title>COUNT 라벨 검수</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 왼쪽 작업 목록 + 오른쪽 차량 그리드 + 하단 확정 바 */
+:root{
+  --bg:#f3f5f7;--panel:#fff;--panel-2:#e9edf1;--fg:#17212b;--mute:#5b6875;--line:#d5dce3;--accent:#0f5e8c;--on:#fff;--plate:#10161c;
+  --plate-fg:#f2f5f7;--cargo:#147a4b;--safety:#bb4a0c;--work:#6a3fc4;--invalid:#56636f;--shadow:0 1px 2px rgba(23,33,43,.07);
+  --sans:"IBM Plex Sans KR","Malgun Gothic",system-ui,sans-serif;--mono:"IBM Plex Mono",Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11161b;--panel:#1a2128;--panel-2:#252e36;--fg:#e8edf2;--mute:#9aa8b5;--line:#303b45;--accent:#6cb9e6;--on:#0d1419;--plate:#090c0f;
+  --cargo:#55cf94;--safety:#f59a5e;--work:#b79bf5;--invalid:#a3afba;--shadow:none;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161b;--panel:#1a2128;--panel-2:#252e36;--fg:#e8edf2;--mute:#9aa8b5;--line:#303b45;--accent:#6cb9e6;--on:#0d1419;--plate:#090c0f;
+  --cargo:#55cf94;--safety:#f59a5e;--work:#b79bf5;--invalid:#a3afba;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-columns:264px minmax(0,1fr);min-height:100vh}
+aside{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;background:var(--panel);border-right:1px solid var(--line);padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;display:flex;flex-direction:column;gap:20px}
+h1{font-size:17px;margin:0;font-weight:700}
+.total{display:grid;gap:6px}.total small{color:var(--mute);font-size:13px}
+.bar{height:5px;background:var(--panel-2);border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.vid{display:grid;gap:3px}.vid h2{font:500 12.5px var(--mono);color:var(--mute);margin:0 0 3px}
+.g{display:flex;justify-content:space-between;gap:8px;width:100%;border:0;background:none;padding:7px 9px;border-radius:6px;text-align:left}
+.g:hover{background:var(--panel-2)}.g.on{background:var(--accent);color:var(--on);font-weight:600}
+.g span:last-child{font:500 12.5px var(--mono)}.g.fin:not(.on) span:last-child{color:var(--cargo)}
+.keys{margin-top:auto;color:var(--mute);font-size:12.5px;display:grid;gap:3px}kbd{font:500 11.5px var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+main{min-width:0;padding-block:18px 96px;padding-left:20px;padding-right:max(20px,env(safe-area-inset-right,0px))}
+.top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.top h2{font-size:19px;margin:0}.top p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.tools{display:flex;gap:12px;align-items:center;color:var(--mute);font-size:13px}.tools label{display:flex;gap:5px;align-items:center;cursor:pointer}
+#sync[data-s="err"]{color:var(--safety);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+.card.done{border-color:var(--cargo)}.card.ch{border-color:var(--safety);box-shadow:0 0 0 1px var(--safety)}
+.shot{position:relative;overflow:hidden;display:block;width:100%;max-width:100%;aspect-ratio:480/340;border:0;padding:0;background-color:var(--plate);background-repeat:no-repeat;cursor:pointer}
+.shot::after{content:"▶ 3초";position:absolute;right:6px;bottom:6px;background:var(--plate);color:var(--plate-fg);font-size:12px;line-height:1;padding:5px 7px;border-radius:4px}
+.shot video{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:contain;background:var(--plate);pointer-events:none}
+.meta{display:flex;justify-content:space-between;gap:8px;padding:8px 10px 6px;font-size:13px}.meta b{font:500 13px var(--mono)}.meta span{color:var(--mute);font-variant-numeric:tabular-nums}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0 8px 8px}
+.seg button{border:1px solid var(--line);background:none;border-radius:5px;min-height:32px;padding:0 2px;font-size:12.5px;white-space:nowrap}
+.seg button:hover{border-color:var(--fg)}
+.seg button.on{color:var(--on);font-weight:600}.seg .cargo.on{background:var(--cargo);border-color:var(--cargo)}.seg .safety.on{background:var(--safety);border-color:var(--safety)}.seg .work.on{background:var(--work);border-color:var(--work)}.seg .invalid.on{background:var(--invalid);border-color:var(--invalid)}
+.empty{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:56px 20px;text-align:center;color:var(--mute);font-size:15px}
+.dock{position:fixed;left:264px;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));padding-left:20px;padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;z-index:4}
+.dock .nav{display:flex;gap:6px;align-items:center}.dock .nav span{color:var(--mute);font:500 13px var(--mono);min-width:54px;text-align:center}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;min-height:38px;padding:0 13px}.btn:disabled{opacity:.45;cursor:default}
+.btn.main{background:var(--accent);border-color:var(--accent);color:var(--on);font-weight:700;padding:0 18px}
+#toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);border-radius:7px;padding:9px 14px;display:flex;gap:12px;align-items:center;z-index:20;max-width:calc(100vw - 32px)}
+#toast button{border:0;background:none;color:inherit;font-weight:700;text-decoration:underline;padding:0}
+#zoom{position:fixed;inset:0;background:var(--bg);z-index:30;overflow:auto;padding-block:calc(14px + env(safe-area-inset-top,0px)) 20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.zt{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 auto 12px;max-width:1500px}.zt b{font:500 15px var(--mono)}
+.zv{display:block;width:100%;max-width:min(1500px,calc((100vh - 200px)*16/9));aspect-ratio:16/9;margin:0 auto;background:var(--plate);border-radius:6px}
+.zc{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:12px auto 0}.zc .on{background:var(--accent);border-color:var(--accent);color:var(--on);font-weight:600}
+#zoom .seg{max-width:520px;margin:10px auto 0;padding:0}#zoom .seg button{min-height:42px;font-size:14px}
+@media (max-width:820px){
+  .app{display:block}aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding-right:max(16px,env(safe-area-inset-right,0px));gap:12px}
+  .vids{display:grid;gap:12px}.vid{grid-template-columns:repeat(2,minmax(0,1fr))}.vid h2{grid-column:1/-1}.keys{display:none}
+  main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:132px}
+  .dock{left:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.btn.main{flex:1 1 100%}.dock .nav{order:2;width:100%;justify-content:space-between}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}
+}
+</style>
+
+<div class="app">
+  <aside>
+    <h1>COUNT 라벨 검수</h1>
+    <div class="total"><small id="tt">불러오는 중</small><div class="bar"><i id="tb" style="width:0"></i></div></div>
+    <nav class="vids" id="vids" aria-label="검수 항목"></nav>
+    <div class="keys"><div><kbd>1</kbd> 화물 <kbd>2</kbd> 세이프티 <kbd>3</kbd> 작업 <kbd>4</kbd> 무효</div><div>마우스를 올리면 재생, 누르면 크게 봅니다</div><div><kbd>←</kbd> <kbd>→</kbd> 페이지 또는 차량 이동</div><div><kbd>Space</kbd> 정지 <kbd>S</kbd> 느리게 (크게 볼 때)</div></div>
+  </aside>
+  <main>
+    <div class="top">
+      <div><h2 id="ttl">검수 항목을 불러오는 중입니다</h2><p id="sub"></p></div>
+      <div class="tools"><label><input type="checkbox" id="todo" checked> 미검수만</label><span id="sync" role="status">연결 중</span></div>
+    </div>
+    <div id="grid" class="grid"></div>
+  </main>
+  <div class="dock">
+    <div class="nav"><button class="btn" id="prev">이전</button><span id="pg">1/1</span><button class="btn" id="next">다음</button></div>
+    <button class="btn main" id="ok">이 페이지 모두 맞음</button>
+  </div>
+</div>
+<div id="toast" role="status" hidden></div>
+<div id="zoom" role="dialog" aria-modal="true" aria-label="차량 확대" hidden></div>
+
+<script>
+const LB={cargo:'화물',safety:'세이프티',work:'작업',invalid:'무효'},LK=Object.keys(LB);
+const GN={cargo:'화물 예측',safety:'세이프티 예측',work:'작업 예측',miss:'미탐 후보',new:'추가 발견'},OP={R2L:'선적',L2R:'양하'};
+const PAGE=24,$=i=>document.getElementById(i);
+let M=null,D={},pend={},db=null,canSave=false,video=null,group=null,page=0,cur=[],count=0,hot=null,zi=-1,timer=null,q=Promise.resolve();
+try{const s=JSON.parse(localStorage.getItem('count-review')||'{}');video=s.video||null;group=s.group||null}catch{}
+const rem=()=>{try{localStorage.setItem('count-review',JSON.stringify({video,group}))}catch{}};
+const short=v=>v.replace('_rtspcam','');
+const lab=it=>(D[it.v]||{})[it.id]??it.p;
+const isDone=it=>(D[it.v]||{})[it.id]!==undefined;
+const of=(v,g)=>M.items.filter(x=>x.v===v&&x.g===g);
+
+function sync(t,s){const e=$('sync');e.textContent=t;e.dataset.s=s||''}
+function toast(t,undo){const e=$('toast');e.replaceChildren(Object.assign(document.createElement('span'),{textContent:t}));if(undo){const b=document.createElement('button');b.textContent='되돌리기';b.onclick=()=>{e.hidden=true;undo()};e.append(b)}e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,undo?7000:4500)}
+
+function shot(it,view){const b=document.createElement('button');const [c,r]=M.grid,k=it.i*2+view;b.className='shot';b.type='button';
+  b.style.backgroundImage=`url(a/${String(it.a).padStart(3,'0')}.jpg)`;b.style.backgroundSize=`${c*100}% ${r*100}%`;b.style.backgroundPosition=`${(k%c)/(c-1)*100}% ${Math.floor(k/c)/(r-1)*100}%`;return b}
+function seg(it){const s=document.createElement('div');s.className='seg';for(const k of LK){const b=document.createElement('button');b.type='button';b.textContent=LB[k];b.dataset.k=k;b.className=k;b.onclick=()=>setLabel(it,k);s.append(b)}return s}
+function paint(el,it){const l=lab(it),d=isDone(it);el.classList.toggle('done',d&&l===it.p);el.classList.toggle('ch',d&&l!==it.p);el.querySelectorAll('.seg button').forEach(b=>{const on=b.dataset.k===l;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)})}
+function card(it,n){const c=document.createElement('article');c.className='card';c.tabIndex=0;c.dataset.k=it.id;const s=shot(it,0);s.setAttribute('aria-label',`${it.id} 차량 확대`);s.onclick=()=>zoom(n);
+  const m=document.createElement('div');m.className='meta';const b=document.createElement('b');b.textContent=((it.g==='miss'||it.g==='new')?'':'E')+it.id;const t=document.createElement('span');t.textContent=`${it.t} · ${OP[it.d]}`;m.append(b,t);
+  c.append(s,m,seg(it));c.onmouseenter=()=>{hot=n;if(!matchMedia('(hover:hover)').matches)return;clearTimeout(hoverT);hoverT=setTimeout(()=>{s.append(hv);seekPlay(hv,it)},140)};c.onmouseleave=hoverStop;c.onfocus=()=>hot=n;paint(c,it);return c}
+function makeVideo(cls){const v=document.createElement('video');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.preload='auto';if(cls)v.className=cls;v.addEventListener('ended',()=>{if(v._s!==undefined){v.currentTime=v._s;v.play().catch(()=>{})}});v.addEventListener('error',()=>toast('영상을 불러오지 못했습니다. 페이지를 새로 열어 주세요.'));return v}
+const hv=makeVideo(),zv=makeVideo('zv');let hoverT=null,rate=1;
+function seekPlay(v,it){const src='/_blob/'+M.blobs[it.c];v._s=it.n*M.dur;v._e=v._s+M.dur;const go=()=>{v.playbackRate=v===zv?rate:1;v.currentTime=v._s;v.play().catch(()=>{})};if(v.dataset.src!==src){v.dataset.src=src;v.src=src;v.addEventListener('loadedmetadata',go,{once:true});v.load()}else go()}
+function hoverStop(){clearTimeout(hoverT);hv.pause();hv.remove()}
+(function tick(){for(const v of [hv,zv])if(v._e!==undefined&&!v.paused&&!v.seeking&&v.currentTime>=v._e-.05)v.currentTime=v._s;requestAnimationFrame(tick)})();
+
+function side(){const all=M.items.length,dn=M.items.filter(isDone).length;$('tt').textContent=`전체 ${dn.toLocaleString()} / ${all.toLocaleString()}대 검수`;$('tb').style.width=`${dn/all*100}%`;
+  const vs=[...new Set(M.items.map(x=>x.v))];$('vids').replaceChildren(...vs.map(v=>{const w=document.createElement('div');w.className='vid';const h=document.createElement('h2');h.textContent=short(v);w.append(h);
+    for(const g in GN){const x=of(v,g);if(!x.length)continue;const d=x.filter(isDone).length,b=document.createElement('button');b.type='button';b.className='g'+(v===video&&g===group?' on':'')+(d===x.length?' fin':'');const a=document.createElement('span');a.textContent=GN[g];const n=document.createElement('span');n.textContent=`${d}/${x.length}`;b.append(a,n);b.onclick=()=>go(v,g);w.append(b)}return w}))}
+function pool(){const x=of(video,group);return $('todo').checked?x.filter(i=>!isDone(i)):x}
+function build(){hoverStop();const p=pool();count=p.length;const pages=Math.max(1,Math.ceil(count/PAGE));page=Math.min(page,pages-1);cur=p.slice(page*PAGE,(page+1)*PAGE);hot=null;
+  $('ttl').textContent=`${short(video)} · ${GN[group]}`;$('sub').textContent=group==='miss'?'기준선을 넘었는데 세지 못한 것으로 보이는 차량입니다. 실제로 넘지 않았거나 중복이면 무효를 누르세요.':'틀린 차량만 라벨을 바꾸고, 나머지는 아래 버튼으로 한 번에 확정하세요.';
+  const g=$('grid');if(cur.length){g.className='grid';g.replaceChildren(...cur.map(card))}else{g.className='';const e=document.createElement('div');e.className='empty';e.textContent='이 항목은 검수를 마쳤습니다. 왼쪽에서 다음 항목을 고르세요.';g.replaceChildren(e)}
+  $('pg').textContent=`${page+1}/${pages}`;$('prev').disabled=page===0;$('next').disabled=page+1>=pages;okBtn();side();scrollTo(0,0)}
+function okBtn(){const un=cur.filter(i=>!lab(i)).length,b=$('ok');b.disabled=!cur.length||un>0||!canSave;b.textContent=un?`라벨을 고를 차량 ${un}대 남음`:`이 페이지 ${cur.length}대 확정`}
+function refresh(){document.querySelectorAll('#grid .card').forEach((c,n)=>cur[n]&&paint(c,cur[n]));if(zi>=0)paintZoom();okBtn();side()}
+function go(v,g){video=v;group=g;page=0;rem();build()}
+
+function setLabel(it,k){if(!canSave)return toast('저장소에 연결되지 않아 저장할 수 없습니다. 페이지를 새로 열어 주세요.');(D[it.v]=D[it.v]||{})[it.id]=k;(pend[it.v]=pend[it.v]||{})[it.id]=k;refresh();schedule()}
+function schedule(){sync('저장 중');clearTimeout(timer);timer=setTimeout(flush,60)}
+const flushNow=()=>{if(Object.keys(pend).length){clearTimeout(timer);flush()}};addEventListener('pagehide',flushNow);document.addEventListener('visibilitychange',()=>{if(document.hidden)flushNow()});
+function flush(){const p=pend;pend={};for(const v in p)q=q.then(()=>put(v,p[v]));q=q.then(()=>{if(!Object.keys(pend).length)sync('저장됨')});return q}
+async function put(v,delta){const r=db.doc('reviews/'+v);try{try{await r.update({m:delta})}catch(e){if(e.code!=='invalid_argument')throw e;await r.set({m:{...D[v]}})}}catch(e){pend[v]={...delta,...(pend[v]||{})};sync('저장 실패 · 다시 시도 중','err');clearTimeout(timer);timer=setTimeout(flush,4000)}}
+function confirmPage(){const its=cur.filter(i=>!isDone(i));for(const it of its){(D[it.v]=D[it.v]||{})[it.id]=it.p;(pend[it.v]=pend[it.v]||{})[it.id]=it.p}
+  if(its.length)schedule();const v=video;if(!$('todo').checked)page++;build();
+  if(its.length)toast(`${its.length}대를 확정했습니다.`,()=>undo(v,its));if(!pool().length)next()}
+function next(){const vs=[...new Set(M.items.map(x=>x.v))];for(const v of vs)for(const g in GN){const x=of(v,g);if(x.some(i=>!isDone(i)))return go(v,g)}}
+function undo(v,its){for(const it of its){delete D[v][it.id];if(pend[v])delete pend[v][it.id]}sync('저장 중');q=q.then(flush).then(()=>db.doc('reviews/'+v).set({m:{...D[v]}})).then(()=>sync('저장됨')).catch(()=>sync('저장 실패','err'));build()}
+
+function zoom(n){hoverStop();zi=n;const it=cur[n],z=$('zoom');const t=document.createElement('div');t.className='zt';const b=document.createElement('b');b.textContent=`${(it.g==='miss'||it.g==='new')?'':'E'}${it.id} · ${it.t} · ${OP[it.d]}`;const c=document.createElement('button');c.className='btn';c.textContent='닫기';c.onclick=closeZoom;t.append(b,c);
+  const mk=(x,f)=>{const e=document.createElement('button');e.type='button';e.className='btn';e.textContent=x;e.onclick=f;return e};const pv=mk('이전 차량',()=>cur[zi-1]&&zoom(zi-1)),nx=mk('다음 차량',()=>cur[zi+1]&&zoom(zi+1));pv.disabled=!cur[n-1];nx.disabled=!cur[n+1];
+  const pl=mk('정지',togglePlay);pl.id='zp';const sl=mk('느리게 0.5배',toggleSlow);sl.id='zs';sl.classList.toggle('on',rate<1);const k=document.createElement('div');k.className='zc';k.append(pv,pl,sl,nx);
+  z.replaceChildren(t,zv,k,seg(it));z.hidden=false;z.tabIndex=-1;z.focus();seekPlay(zv,it);paintZoom()}
+function togglePlay(){if(zv.paused)zv.play().catch(()=>{});else zv.pause();const b=$('zp');if(b)b.textContent=zv.paused?'재생':'정지'}
+function toggleSlow(){rate=rate<1?1:.5;zv.playbackRate=rate;const b=$('zs');if(b)b.classList.toggle('on',rate<1)}
+function paintZoom(){const it=cur[zi];if(it)$('zoom').querySelectorAll('.seg button').forEach(b=>{const on=b.dataset.k===lab(it);b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)})}
+function closeZoom(){zi=-1;zv.pause();$('zoom').hidden=true}
+addEventListener('keydown',e=>{if(e.target.matches&&e.target.matches('input'))return;if(e.key==='Escape'&&zi>=0)return closeZoom();
+  if(zi>=0&&e.key===' '){e.preventDefault();return togglePlay()}if(zi>=0&&(e.key==='s'||e.key==='S'))return toggleSlow();
+  const n=zi>=0?zi:hot;if(/^[1-4]$/.test(e.key)&&cur[n]){setLabel(cur[n],LK[+e.key-1]);return}
+  if(e.key==='ArrowRight'||e.key==='ArrowLeft'){const d=e.key==='ArrowRight'?1:-1;if(zi>=0){const m=zi+d;if(cur[m])zoom(m)}else{const b=$(d>0?'next':'prev');if(!b.disabled)b.click()}}});
+$('prev').onclick=()=>{page--;build()};$('next').onclick=()=>{page++;build()};$('ok').onclick=confirmPage;$('todo').onchange=()=>{page=0;build()};
+
+(async()=>{
+  try{M=await (await fetch('items.json')).json()}catch{$('ttl').textContent='검수 데이터를 불러오지 못했습니다. 페이지를 새로 열어 주세요.';sync('연결 실패','err');return}
+  const has=(v,g)=>M.items.some(x=>x.v===v&&x.g===g);if(!has(video,group)){video=M.items[0].v;group=M.items[0].g}build();
+  db=window.claude?.use?await claude.use('db'):null;
+  if(!db){sync('저장소 연결 안 됨','err');return}
+  canSave=true;okBtn();const w=setTimeout(()=>sync('저장소 응답 대기 중','err'),10000);let first=true;
+  db.collection('reviews').onSnapshot(s=>{if(!s.metadata.fromCache)clearTimeout(w);const n={};s.docs.forEach(d=>n[d.id]={...(d.data().m||{}),...(pend[d.id]||{})});for(const v in pend)n[v]=n[v]||{...pend[v]};D=n;if(first&&!s.metadata.fromCache){first=false;sync('저장됨');build()}else refresh()},e=>{clearTimeout(w);canSave=false;okBtn();sync('저장소 연결 끊김','err')});
+})();
+</script>

@@ -26,6 +26,8 @@ _etc/
 *.onnx
 *.engine
 *.torchscript
+# YOLOE 텍스트 인코더(TorchScript, 572MB) — ultralytics 가 자동 다운로드
+*.ts
 !_model_/vincode_v4.pt
 !_model_/vin260811.pt
 

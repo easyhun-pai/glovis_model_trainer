@@ -1,0 +1,108 @@
+<title>COUNT 표식 검수</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#f3f5f7;--panel:#fff;--panel-2:#e9edf1;--fg:#17212b;--mute:#5b6875;--line:#d5dce3;--accent:#0f5e8c;--on:#fff;--plate:#10161c;
+  --ok:#147a4b;--bad:#bb4a0c;--miss:#6a3fc4;--shadow:0 1px 2px rgba(23,33,43,.07);
+  --sans:"IBM Plex Sans KR","Malgun Gothic",system-ui,sans-serif;--mono:"IBM Plex Mono",Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11161b;--panel:#1a2128;--panel-2:#252e36;--fg:#e8edf2;--mute:#9aa8b5;--line:#303b45;--accent:#6cb9e6;--on:#0d1419;--plate:#090c0f;
+  --ok:#55cf94;--bad:#f59a5e;--miss:#b79bf5;--shadow:none;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161b;--panel:#1a2128;--panel-2:#252e36;--fg:#e8edf2;--mute:#9aa8b5;--line:#303b45;--accent:#6cb9e6;--on:#0d1419;--plate:#090c0f;
+  --ok:#55cf94;--bad:#f59a5e;--miss:#b79bf5;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--sans);margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{position:sticky;top:0;z-index:3;background:var(--panel);border-bottom:1px solid var(--line);padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));display:grid;gap:8px}
+.row{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:space-between}
+h1{font-size:17px;margin:0}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--mute)}
+.legend i{display:inline-block;width:12px;height:12px;border:3px solid;border-radius:2px;vertical-align:-1px;margin-right:5px}
+.bar{height:5px;background:var(--panel-2);border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+#sync{font-size:13px;color:var(--mute)}#sync[data-s="err"]{color:var(--bad);font-weight:600}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tab{border:1px solid var(--line);background:none;border-radius:6px;padding:4px 10px;font-size:13px}
+.tab.on{background:var(--accent);border-color:var(--accent);color:var(--on);font-weight:600}
+.tab span{font:500 12px var(--mono);margin-left:6px}
+main{padding:14px max(16px,env(safe-area-inset-right,0px)) 96px max(16px,env(safe-area-inset-left,0px))}
+.help{margin:0 0 12px;color:var(--mute);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+.card.done{border-color:var(--ok)}.card.flag{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad)}
+.shot{display:block;width:100%;aspect-ratio:480/400;border:0;padding:0;background-color:var(--plate);background-repeat:no-repeat;cursor:zoom-in}
+.meta{display:flex;justify-content:space-between;gap:8px;padding:7px 10px 5px;font-size:12.5px;color:var(--mute)}.meta b{font:500 12.5px var(--mono);color:var(--fg)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:0 8px 8px}
+.seg button{border:1px solid var(--line);background:none;border-radius:5px;min-height:34px;padding:0 2px;font-size:12.5px;white-space:nowrap}
+.seg button:hover{border-color:var(--fg)}
+.seg button.on{color:var(--on);font-weight:600}.seg .ok.on{background:var(--ok);border-color:var(--ok)}.seg .wrong.on{background:var(--bad);border-color:var(--bad)}.seg .miss.on{background:var(--miss);border-color:var(--miss)}.seg .both.on{background:linear-gradient(90deg,var(--bad),var(--miss));border-color:var(--miss)}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:3;background:var(--panel);border-top:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.nav{display:flex;gap:6px;align-items:center}.nav span{color:var(--mute);font:500 13px var(--mono);min-width:54px;text-align:center}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;min-height:38px;padding:0 13px}.btn:disabled{opacity:.45;cursor:default}
+.btn.main{background:var(--accent);border-color:var(--accent);color:var(--on);font-weight:700;padding:0 18px}
+.empty{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:56px 20px;text-align:center;color:var(--mute)}
+#zoom{position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.86);display:none;align-items:center;justify-content:center;padding:16px}
+#zoom.on{display:flex}#zoom div{width:min(100%,960px);aspect-ratio:480/400;background-repeat:no-repeat}
+</style>
+<header>
+  <div class="row"><h1>COUNT 표식 검수</h1><span id="sync">연결 중</span></div>
+  <div class="legend"><span><i style="border-color:#e8352c"></i>번호판</span><span><i style="border-color:#ffb000"></i>경광등</span><span><i style="border-color:#e040fb"></i>창문 번호</span></div>
+  <div class="bar"><i id="pb" style="width:0"></i></div>
+  <div class="tabs" id="tabs"></div>
+</header>
+<main>
+  <p class="help" id="help"></p>
+  <div class="grid" id="grid"></div>
+</main>
+<div class="dock">
+  <div class="nav"><button class="btn" id="prev" type="button">이전</button><span id="pg">1/1</span><button class="btn" id="next" type="button">다음</button></div>
+  <button class="btn main" id="ok" type="button">이 페이지 확정</button>
+</div>
+<div id="zoom"><div id="zi"></div></div>
+<script>
+const $=id=>document.getElementById(id),PER=24;
+const TAB={sv:'세이프티·작업',cg:'화물 (박스가 잡힌 것)'};
+const HELP={sv:'세이프티카·작업차 크롭입니다. 보이는 표식에 박스가 모두 맞게 쳐져 있으면 정확, 엉뚱한 곳에 박스가 있으면 틀린 박스, 보이는 표식에 박스가 없으면 빠진 표식을 누르세요. 둘 다면 틀린 박스.',
+ cg:'화물차 크롭입니다. 화물차엔 표식이 없어야 하므로, 박스가 배경(볼라드·경고등 등)이나 화물차 위에 있으면 정확(학습 시 지움), 실제로 다른 세이프티카의 표식이면 틀린 박스를 누르세요.'};
+let M=null,D={},pend={},db=null,canSave=false,tab='sv',page=0,cur=[],timer=null;
+const lab=it=>D[it.k];
+function sync(t,s){const e=$('sync');e.textContent=t;e.dataset.s=s||''}
+function tiles(it){const[c,r]=M.grid,a=it.i;return{img:`url(a/${String(it.a).padStart(3,'0')}.jpg)`,size:`${c*100}% ${r*100}%`,pos:`${(a%c)/(c-1)*100}% ${Math.floor(a/c)/(r-1)*100}%`}}
+function pool(){return M.items.filter(x=>x.t===tab)}
+function render(){
+  const all=M.items.length,dn=M.items.filter(lab).length;$('pb').style.width=`${dn/all*100}%`;
+  $('tabs').replaceChildren(...Object.keys(TAB).map(t=>{const x=M.items.filter(i=>i.t===t),b=document.createElement('button');b.type='button';b.className='tab'+(t===tab?' on':'');b.textContent=TAB[t];const s=document.createElement('span');s.textContent=`${x.filter(lab).length}/${x.length}`;b.append(s);b.onclick=()=>{tab=t;page=0;render();scrollTo(0,0)};return b}));
+  $('help').textContent=HELP[tab];
+  const p=pool(),n=Math.max(1,Math.ceil(p.length/PER));page=Math.min(page,n-1);cur=p.slice(page*PER,page*PER+PER);
+  $('pg').textContent=`${page+1}/${n}`;$('prev').disabled=page===0;$('next').disabled=page>=n-1;
+  const g=$('grid');if(!cur.length){const e=document.createElement('div');e.className='empty';e.textContent='항목이 없습니다.';g.replaceChildren(e);return}
+  g.replaceChildren(...cur.map(it=>{const c=document.createElement('div'),v=lab(it);c.className='card'+(v==='ok'?' done':v?' flag':'');
+    const s=document.createElement('button');s.type='button';s.className='shot';s.setAttribute('aria-label','크게 보기');const T=tiles(it);s.style.backgroundImage=T.img;s.style.backgroundSize=T.size;s.style.backgroundPosition=T.pos;
+    s.onclick=()=>{const z=$('zi');z.style.backgroundImage=T.img;z.style.backgroundSize=T.size;z.style.backgroundPosition=T.pos;$('zoom').classList.add('on')};
+    const m=document.createElement('div');m.className='meta';const b=document.createElement('b');b.textContent=it.n;const sp=document.createElement('span');sp.textContent=it.s;m.append(b,sp);
+    const seg=document.createElement('div');seg.className='seg';
+    for(const[k,t]of[['ok','정확'],['wrong','틀린 박스'],['miss','빠진 표식'],['both','둘 다']]){const x=document.createElement('button');x.type='button';x.className=k+(v===k?' on':'');x.textContent=t;x.onclick=()=>{set(it,k);render()};seg.append(x)}
+    c.append(s,m,seg);return c}));
+  const ok=$('ok');ok.disabled=!canSave;ok.textContent=`이 페이지 ${cur.length}장 확정`}
+function set(it,v){D[it.k]=v;pend[it.k]=v;schedule()}
+function schedule(){sync('저장 중');clearTimeout(timer);timer=setTimeout(flush,60)}
+async function flush(){if(!db)return;const d=pend;pend={};if(!Object.keys(d).length)return;
+  try{const ref=db.doc('marks/r1');try{await ref.update({m:d})}catch(e){if(e.code!=='invalid_argument')throw e;await ref.set({m:{...D}})}sync('저장됨')}
+  catch{Object.assign(pend,d,pend);sync('저장 실패','err');clearTimeout(timer);timer=setTimeout(flush,4000)}}
+const flushNow=()=>{if(Object.keys(pend).length){clearTimeout(timer);flush()}};addEventListener('pagehide',flushNow);document.addEventListener('visibilitychange',()=>{if(document.hidden)flushNow()});
+$('prev').onclick=()=>{page--;render();scrollTo(0,0)};$('next').onclick=()=>{page++;render();scrollTo(0,0)};
+$('ok').onclick=()=>{for(const it of cur)if(!lab(it))set(it,'ok');const n=Math.ceil(pool().length/PER);if(page<n-1)page++;render();scrollTo(0,0)};
+$('zoom').onclick=()=>$('zoom').classList.remove('on');addEventListener('keydown',e=>{if(e.key==='Escape')$('zoom').classList.remove('on')});
+(async()=>{
+  try{M=await (await fetch('items.json')).json()}catch{$('help').textContent='검수 데이터를 불러오지 못했습니다. 새로고침해 주세요.';return}
+  render();
+  const t=setTimeout(()=>{if(!db)sync('저장 불가 (로그인 필요)','err')},10000);
+  try{db=window.claude?.use?await claude.use('db'):null}catch{db=null}
+  if(!db){clearTimeout(t);sync('저장 불가 (로그인 필요)','err');return}
+  let first=true;
+  db.collection('marks').onSnapshot(s=>{if(s.metadata.fromCache)return;clearTimeout(t);const d=s.docs.find(x=>x.id==='r1');D={...((d&&d.data().m)||{}),...pend};if(first){first=false;canSave=true;sync('저장됨')}render()},
+    ()=>{clearTimeout(t);canSave=false;sync('저장소 연결 끊김','err');render()})})();
+</script>
