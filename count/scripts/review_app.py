@@ -1,6 +1,6 @@
 """COUNT 라벨 검수 웹앱 (로컬 전용).
 
-사용:  python scripts/count/review_app.py [--port 8765]  →  http://127.0.0.1:8765
+사용:  python count/scripts/review_app.py [--port 8765]  →  http://127.0.0.1:8765
 
 입력/저장: data/COUNT/gt_draft/<영상>.csv       통과 이벤트 (클릭 즉시 저장, pred 열에 최초 예측 보존)
            data/COUNT/gt_draft/<영상>_miss.csv  미탐 후보

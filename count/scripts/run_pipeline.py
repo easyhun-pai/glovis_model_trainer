@@ -1,7 +1,7 @@
 """COUNT 파이프라인 일괄 실행: 영상 → 추적 → 라인 통과 이벤트 → 비화물(번호판) 판정 → (GT 있으면) 평가.
 
 사용:
-  python scripts/count/run_pipeline.py data/COUNT/260701_s1_rtspcam.mp4 [더 많은 영상...] [--skip-extract]
+  python count/scripts/run_pipeline.py data/COUNT/260701_s1_rtspcam.mp4 [더 많은 영상...] [--skip-extract]
 
 단계별 스크립트:
   extract_tracks.py  → runs/count/<영상>/tracks.csv, crops/

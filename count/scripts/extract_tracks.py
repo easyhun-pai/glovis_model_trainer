@@ -8,7 +8,7 @@
   meta.json
 
 사용:
-  python scripts/count/extract_tracks.py data/COUNT/260701_s1_rtspcam.mp4 --model yolo26m.pt
+  python count/scripts/extract_tracks.py data/COUNT/260701_s1_rtspcam.mp4 --model yolo26m.pt
 """
 import argparse, csv, json, time
 from pathlib import Path

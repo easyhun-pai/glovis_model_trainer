@@ -9,9 +9,9 @@ conf 를 낮게 잡는 이유(중요):
   즉 사전라벨 단계에서는 과검출이 미검출보다 훨씬 싸다.
 
 사용:
-    python auto_label.py --batch data/260701
-    python auto_label.py --batch data/260701 --conf 0.1     # 후보 더 넓게
-    python auto_label.py --batch data/260701 --model _model_/vincode_v2.pt
+    python auto_label.py --batch data/VIN/260701
+    python auto_label.py --batch data/VIN/260701 --conf 0.1     # 후보 더 넓게
+    python auto_label.py --batch data/VIN/260701 --model _model_/vincode_v2.pt
 """
 
 import argparse
@@ -26,16 +26,16 @@ import torch
 import yaml
 from ultralytics import YOLO
 
-ROOT = Path(__file__).resolve().parent.parent   # scripts/ 상위 = 프로젝트 루트
+ROOT = Path(__file__).resolve().parents[2]   # vincode/scripts/ → 저장소 루트
 IMAGE_EXTS = {".bmp", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--batch", required=True,
-                    help="배치 폴더. 안에 images/ 가 있어야 함 (예: data/260701)")
-    ap.add_argument("--model", default="_model_/vincode_v4.pt", help="사전라벨에 쓸 모델(기본: 배포 모델)")
-    ap.add_argument("--names-yaml", default="data/dataset/data.yaml",
+                    help="배치 폴더. 안에 images/ 가 있어야 함 (예: data/VIN/260701)")
+    ap.add_argument("--model", default="vincode/models/vincode_v4.pt", help="사전라벨에 쓸 모델(기본: 배포 모델)")
+    ap.add_argument("--names-yaml", default="data/VIN/dataset/data.yaml",
                     help="classes.txt 생성용 클래스명 출처")
     ap.add_argument("--conf", type=float, default=0.2,
                     help="신뢰도 임계값. 검수용이라 낮게 (docstring 참고)")

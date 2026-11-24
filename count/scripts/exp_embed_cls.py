@@ -3,7 +3,7 @@
 평가: leave-one-video-out. 크롭 확률을 트랙별로 집계(top-k 평균) → 이벤트 판정.
 비화물 = label != cargo (세이프티카 + 작업차). 카운트 = 화물로 판정된 이벤트 수.
 
-사용: python scripts/count/exp_embed_cls.py --model facebook/dinov2-base
+사용: python count/scripts/exp_embed_cls.py --model facebook/dinov2-base
 """
 import argparse
 from pathlib import Path

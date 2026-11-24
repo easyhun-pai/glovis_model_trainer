@@ -19,7 +19,7 @@
 출력: <--output>/{detected,missed}/<영상>_f<프레임번호>.jpg + .txt, classes.txt
 
 사용:
-    python prepare_frames.py --input data/260619/_etc/originVideo --output data/260619/frames_for_label
+    python prepare_frames.py --input data/VIN/260619/_etc/originVideo --output data/VIN/260619/frames_for_label
     python prepare_frames.py --input <영상폴더> --only cam1_0001.mp4      # 1개만(테스트)
     python prepare_frames.py --input <영상폴더> --stride 2 --dedup 6 --motion 0.05
 """
@@ -32,7 +32,7 @@ import cv2
 import numpy as np
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent   # scripts/ 상위 = 프로젝트 루트
+ROOT = Path(__file__).resolve().parents[2]   # vincode/scripts/ → 저장소 루트
 
 # 영상 내용물은 흑백 -> 채도가 이 값보다 높으면 컬러 오버레이(박스/텍스트)로 간주.
 # 단, 어두운 픽셀은 노이즈로 채도가 가짜로 높게 나오므로 밝기(V)도 함께 요구해야 함
@@ -167,7 +167,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", required=True, help="원본 영상(.mp4) 폴더")
     ap.add_argument("--output", required=True, help="프레임 출력 폴더 (detected/ missed/ 가 생성됨)")
-    ap.add_argument("--names-yaml", default="data/dataset/data.yaml",
+    ap.add_argument("--names-yaml", default="data/VIN/dataset/data.yaml",
                     help="classes.txt 생성용 클래스명 출처")
     ap.add_argument("--stride", type=int, default=2, help="N프레임마다 1장 분석 (12.5fps면 2 -> ~6fps)")
     ap.add_argument("--motion", type=float, default=0.05, help="전경 비율 임계 (이상이면 차량 있음)")

@@ -1,7 +1,7 @@
 """review_compare.py 로 만든 verdicts.csv -> 성능표 PNG + 판정 얹은 비교영상.
 
 정답 라벨이 없는 unseen 영상이라 mAP 대신 '사람 판정' 기반 정답률/승패로 비교한다.
-실행:  python report_compare.py --dir data/260701/testVideo/compare_v1_v4
+실행:  python report_compare.py --dir data/VIN/260701/testVideo/compare_v1_v4
 """
 import argparse
 import csv

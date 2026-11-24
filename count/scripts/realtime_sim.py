@@ -12,7 +12,7 @@
 - 출력: <out>/events.csv, stats.json, report.html (+ --gt 가 있으면 eval)
 
 홀드아웃('검증용')은 --final-holdout 없이는 거부한다.
-사용: python scripts/count/realtime_sim.py data/COUNT/260818_s1_rtspcam.mp4 [--max-seconds 600] [--gt data/COUNT/gt_rev/260818_s1_rtspcam.csv]
+사용: python count/scripts/realtime_sim.py data/COUNT/260818_s1_rtspcam.mp4 [--max-seconds 600] [--gt data/COUNT/gt_rev/260818_s1_rtspcam.csv]
 """
 import argparse, csv, json, queue, sys, threading, time
 from pathlib import Path
@@ -196,6 +196,10 @@ class Renderer:
         for n, cc in lg:
             d.rectangle([x + 6, y + 4, x + 20, y + 18], outline=cc, width=3); d.text((x + 25, y + 2), n, font=self.f_xs, fill=(230, 234, 238))
             x += d.textlength(n, font=self.f_xs) + 34
+        if self.a.render_title:
+            tw = d.textlength(self.a.render_title, font=self.f_sm)
+            d.rounded_rectangle([self.ow - tw - 34, 12, self.ow - 12, 44], 8, fill=(15, 20, 26, 190))
+            d.text((self.ow - tw - 23, 17), self.a.render_title, font=self.f_sm, fill=(255, 255, 255))
         self.p.stdin.write(np.asarray(im).tobytes()); self.n += 1
 
     def close(self, evs):
@@ -310,6 +314,7 @@ def main():
     ap.add_argument("--start", type=float, default=0, help="시작 위치(초, 실제 pts)")
     ap.add_argument("--render", default=None, help="데모 영상 출력 경로(.mp4). --no-drop 과 함께 쓰는 것을 권장")
     ap.add_argument("--render-width", type=int, default=1280); ap.add_argument("--render-crf", type=int, default=26)
+    ap.add_argument("--render-title", default=None, help="데모 우상단 제목(출처 영상·시각)")
     # count_events.py 와 동일한 기본값
     ap.add_argument("--min-h", type=float, default=150); ap.add_argument("--split-x", type=float, default=250)
     ap.add_argument("--edge-x", type=float, default=40); ap.add_argument("--min-gap", type=float, default=3.0)

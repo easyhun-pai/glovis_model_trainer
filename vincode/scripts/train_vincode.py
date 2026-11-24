@@ -10,7 +10,7 @@
 
 사용:
     python train_vincode.py                                      # 기본 통합 구성
-    python train_vincode.py --data data_field_only.yaml --name fieldonly
+    python train_vincode.py --data vincode/configs/data_field_only.yaml --name fieldonly
     python train_vincode.py --base _model_/vincode_v2.pt --name v4
     python train_vincode.py --batch 4 --imgsz 1024               # OOM 시
 
@@ -26,7 +26,7 @@ from pathlib import Path
 import yaml
 from ultralytics import YOLO
 
-ROOT = Path(__file__).resolve().parent.parent   # scripts/ 상위 = 프로젝트 루트
+ROOT = Path(__file__).resolve().parents[2]   # vincode/scripts/ → 저장소 루트
 
 
 def resolve_data(data_yaml: Path, data_root: Path) -> Path:
@@ -46,12 +46,12 @@ def resolve_data(data_yaml: Path, data_root: Path) -> Path:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", default="data_combined.yaml", help="데이터 구성 yaml")
-    ap.add_argument("--data-root", default="data/dataset",
-                    help="yaml 안 상대경로의 기준 루트 (기본: ./data/dataset)")
-    ap.add_argument("--base", default="_model_/vincode_v4.pt",
+    ap.add_argument("--data", default="vincode/configs/data_combined.yaml", help="데이터 구성 yaml")
+    ap.add_argument("--data-root", default="data/VIN/dataset",
+                    help="yaml 안 상대경로의 기준 루트 (기본: ./data/VIN/dataset)")
+    ap.add_argument("--base", default="vincode/models/vincode_v4.pt",
                     help="warm-start 할 가중치(기본: 저장소에 포함된 배포 모델). 처음 학습이면 COCO(yolo26n.pt) 지정")
-    ap.add_argument("--project", default="runs_vincode")
+    ap.add_argument("--project", default="runs/vincode")
     ap.add_argument("--name", default="finetune",
                     help="실행 이름. 같은 이름이 있으면 자동으로 뒤에 번호가 붙어 기존 결과를 덮지 않음")
     ap.add_argument("--imgsz", type=int, default=1280, help="작은 VIN 검출 위해 크게. OOM 시 1024")

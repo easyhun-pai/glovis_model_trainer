@@ -10,7 +10,7 @@
 라벨 없는(빈 txt) 프레임은 애초에 보여주지 않는다(= 학습에서 자동 제외).
 
 실행:
-    python scripts/review_keep.py --images <export폴더> --out data/260731/kept
+    python vincode/scripts/review_keep.py --images <export폴더> --out data/VIN/260731/kept
     # 라벨이 이미지와 다른 폴더면: --labels <라벨폴더> 추가
 """
 import argparse
@@ -122,7 +122,7 @@ def main():
     c = Counter(dec.values())
     print(f"\n[=] 판단 {len(dec)}/{len(frames)} | keep {c['keep']} / exclude {c['exclude']} / 보류 {len(frames)-len(dec)}")
     print(f"    학습용 복사: {out/'images'} ({len(kept)}장)")
-    print(f"    다음: python scripts/prepare_split.py --src {out} --split-mode session ...")
+    print(f"    다음: python vincode/scripts/prepare_split.py --src {out} --split-mode session ...")
 
 
 if __name__ == "__main__":

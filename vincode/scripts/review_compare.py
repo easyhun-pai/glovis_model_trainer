@@ -6,7 +6,7 @@ compare_v1_v4/ 의 좌우비교 프레임(좌 v1 / 우 v4)을 한 장씩 보며 
     b = 이전 프레임     s = 건너뛰기(미판정)     q/ESC = 저장 후 종료
 판정은 <dir>/verdicts.csv 에 저장되고, 다시 실행하면 미판정부터 이어서 한다.
 
-실행:  python review_compare.py --dir data/260701/testVideo/compare_v1_v4
+실행:  python review_compare.py --dir data/VIN/260701/testVideo/compare_v1_v4
 """
 import argparse
 import csv

@@ -1,4 +1,4 @@
-"""검수 끝난 배치(images/ + labels/)를 학습셋(data/dataset)에 배치한다.
+"""검수 끝난 배치(images/ + labels/)를 학습셋(data/VIN/dataset)에 배치한다.
 
 누수 방지가 핵심: 같은 차량 한 대가 여러 프레임·여러 카메라(gige1/gige2)에 걸쳐 찍힌다.
 프레임을 랜덤 분할하면 같은 차가 train 과 val 양쪽에 들어가 성능이 가짜로 높게 나온다.
@@ -15,11 +15,11 @@
 
 사용:
     # 세션 안에서 차량단위 8:2 (파일명이 s1_v001_gige1 형태: 그룹=세션,차량)
-    python prepare_split.py --src data/260701 --bucket v4_260701 --split-mode stratify \
+    python prepare_split.py --src data/VIN/260701 --bucket v4_260701 --split-mode stratify \
         --group-re "(s\\d+)_(v\\d+)" --val-frac 0.2
 
     # 세션 통째 분할 (파일명이 ..._20260619_124450_... 형태)
-    python prepare_split.py --src data/260619 --split-mode session \
+    python prepare_split.py --src data/VIN/260619 --split-mode session \
         --train-sessions 20260619_124248,20260619_124450 --eval-sessions 20260619_130143
 """
 import argparse
@@ -28,7 +28,7 @@ import re
 import shutil
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent   # scripts/ 상위 = 프로젝트 루트
+ROOT = Path(__file__).resolve().parents[2]   # vincode/scripts/ → 저장소 루트
 
 # 기본 세션 패턴: 's1' 같은 접두사 또는 '20260619_124450' 같은 타임스탬프
 DEFAULT_SESSION_RE = r"(?:^|_)(s\d+|\d{8}_\d{6})(?:_|$)"
@@ -108,7 +108,7 @@ def split_stratify(src_img, labset, group_re, val_frac, rng):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", required=True, help="검수 끝난 배치 폴더 (images/ labels/ 포함)")
-    ap.add_argument("--data-root", default="data/dataset", help="학습셋 루트 (기본: ./data/dataset)")
+    ap.add_argument("--data-root", default="data/VIN/dataset", help="학습셋 루트 (기본: ./data/VIN/dataset)")
     ap.add_argument("--bucket", default="v2_visolabel", help="배치될 버킷 폴더명")
     ap.add_argument("--split-mode", default="session", choices=["session", "stratify"])
     # session 모드
