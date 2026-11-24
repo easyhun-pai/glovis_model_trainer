@@ -150,7 +150,9 @@ class Renderer:
     def frame(self, fi, img, vs, evs):
         from PIL import Image, ImageDraw
         t = float(self.pts[min(fi, len(self.pts) - 1)])
-        if self.t_first is None: self.t_first = t
+        if self.a.render_from is not None and t < self.a.render_from: return
+        if self.t_first is None: self.t_first = t; self.base = self.counts(evs)
+        evs_c = self.counts(evs); evs_c = {k: evs_c[k] - self.base[k] for k in evs_c}
         small = cv2.resize(img, (self.ow, self.oh), interpolation=cv2.INTER_AREA)
         im = Image.fromarray(cv2.cvtColor(small, cv2.COLOR_BGR2RGB)); d = ImageDraw.Draw(im, "RGBA"); s = self.s
         d.line([tuple(self.LA), tuple(self.LB)], fill=(0, 230, 255, 230), width=3)
@@ -176,7 +178,7 @@ class Renderer:
             b = [x1 * s, y1 * s, x2 * s, y2 * s]; d.rectangle(b, outline=col + (255,), width=3)
             tw = d.textlength(lab, font=self.f_sm); ty = max(0, b[1] - 24)
             d.rectangle([b[0], ty, b[0] + tw + 10, ty + 23], fill=col + (225,)); d.text((b[0] + 5, ty + 1), lab, font=self.f_sm, fill=(255, 255, 255))
-        c = self.counts(evs)
+        c = evs_c
         if self.prev is not None:
             for k in c:
                 if c[k] != self.prev[k]: self.flash[k] = self.n + 15
@@ -196,6 +198,10 @@ class Renderer:
         for n, cc in lg:
             d.rectangle([x + 6, y + 4, x + 20, y + 18], outline=cc, width=3); d.text((x + 25, y + 2), n, font=self.f_xs, fill=(230, 234, 238))
             x += d.textlength(n, font=self.f_xs) + 34
+        if self.a.render_banner:
+            bw_ = d.textlength(self.a.render_banner, font=self.f_sm)
+            x0 = max(360, (self.ow - bw_) / 2 - 14)
+            d.rounded_rectangle([x0, 12, x0 + bw_ + 28, 44], 8, fill=(190, 30, 30, 220)); d.text((x0 + 14, 17), self.a.render_banner, font=self.f_sm, fill=(255, 255, 255))
         if self.a.render_title:
             tw = d.textlength(self.a.render_title, font=self.f_sm)
             d.rounded_rectangle([self.ow - tw - 34, 12, self.ow - 12, 44], 8, fill=(15, 20, 26, 190))
@@ -246,7 +252,7 @@ class MarkWorker(threading.Thread):
     def __init__(self, model, conf, min_frames, imgsz=640):
         super().__init__(daemon=True)
         self.m = YOLO(model); self.conf = conf; self.min_frames = min_frames; self.imgsz = imgsz
-        self.q = queue.Queue(); self.out = []; self.lat = []; self.motion = "all"; self.dropped = {v: 0 for v in CLS.values()}
+        self.q = queue.Queue(); self.out = []; self.lat = []; self.motion = "all"; self.dropped = {v: 0 for v in CLS.values()}; self.mlog = []
 
     def run(self):
         while True:
@@ -276,8 +282,18 @@ class MarkWorker(threading.Thread):
             dd = " ".join(f"{k}{v}" for k, v in dropped.items() if v)
             reason = " ".join(f"{k}{v}" for k, v in cnt.items() if v) + (f" (고정 표식 버림 {dd})" if dd else "")
             ev["decision_old_rule"] = "exclude" if excl_old else "cargo"; ev["static_dropped"] = dd; ev["marks"] = cnt
+            # 기록 전용(판정에 영향 없음): 크롭별·종류별 최대 conf — raw(≥0.25, 이동 규칙 전) / kept(≥veh_conf, 이동 규칙 후) / static(버린 수)
+            for i, (c, r) in enumerate(zip(crops, res)):
+                row = dict(ev=ev, crop=i, frame=c["frame"])
+                for k, nm in CLS.items():
+                    cf = [x for x, kk in zip(r.boxes.conf.tolist(), r.boxes.cls.int().tolist()) if kk == k]
+                    row[f"{nm}_raw"] = round(max(cf), 3) if cf else 0.0
+                    kept = [D[n][2] for n in range(len(D)) if D[n][0] == i and D[n][1] == k and n not in static]
+                    row[f"{nm}_kept"] = round(max(kept), 3) if kept else 0.0
+                    row[f"{nm}_static"] = sum(1 for n in static if D[n][0] == i and D[n][1] == k)
+                self.mlog.append(row)
             dt = time.perf_counter() - t; self.lat.append(dt)
-            cb(ev, "exclude" if excl else "cargo", f"{nf}/{len(crops)} 크롭: {reason}".strip(), dt)
+            cb(ev,"exclude" if excl else "cargo", f"{nf}/{len(crops)} 크롭: {reason}".strip(), dt)
 
 
 # ---------------------------------------------------------------- 온라인 트랙/체인
@@ -315,6 +331,8 @@ def main():
     ap.add_argument("--render", default=None, help="데모 영상 출력 경로(.mp4). --no-drop 과 함께 쓰는 것을 권장")
     ap.add_argument("--render-width", type=int, default=1280); ap.add_argument("--render-crf", type=int, default=26)
     ap.add_argument("--render-title", default=None, help="데모 우상단 제목(출처 영상·시각)")
+    ap.add_argument("--render-from", type=float, default=None, help="이 시각(초)부터만 영상에 기록 (앞부분은 추적 상태를 맞추려고 처리만)")
+    ap.add_argument("--render-banner", default=None, help="상단 중앙 배너 문구 (오류 클립용)")
     # count_events.py 와 동일한 기본값
     ap.add_argument("--min-h", type=float, default=150); ap.add_argument("--split-x", type=float, default=250)
     ap.add_argument("--edge-x", type=float, default=40); ap.add_argument("--min-gap", type=float, default=3.0)
@@ -377,8 +395,8 @@ def main():
         rows = []
         for rt in raw.values():
             n = len(rt.rows)
-            # 오래 머문 트랙(주차 차량 등)은 앞 10개·뒤 150개만 전부, 중간은 10개에 1개 (통과 판정·속도 추정에 필요한 양 끝 유지)
-            sel = range(n) if n <= 300 else [*range(10), *range(10, n - 150, 10), *range(n - 150, n)]
+            # 오래 머문 트랙(주차 차량 등)은 앞 10개·뒤 150개만 전부, 중간은 최대 100개로 고르게 (주차 차량이 많으면 매 프레임 비용이 계속 커짐) (통과 판정·속도 추정에 필요한 양 끝 유지)
+            sel = range(n) if n <= 300 else [*range(10), *np.linspace(10, n - 151, 100).astype(int).tolist(), *range(n - 150, n)]
             for q in sel:
                 r, k = rt.rows[q], rt.piece[q]
                 pid = rt.pid(k)
@@ -540,6 +558,8 @@ def main():
                          decided_at=round(e["decided_wall"] - reader.t0, 1), latency_s=round(e["decided_wall"] - wall_of(e["frame"]), 1),
                          mark_s=e["mark_s"], n_crops=e["n_crops"], emit_latency_s=round(e["emit_wall"] - wall_of(e["frame"]), 2), late=bool(e["late"]), decision_old_rule=e.get("decision_old_rule"), static_dropped=e.get("static_dropped", "")))
     ev = pd.DataFrame(rows); ev.to_csv(out / "events.csv", index=False, encoding="utf-8-sig")
+    pd.DataFrame([{"event_no": r["ev"]["event_no"], "cross_time": next((x["cross_time"] for x in rows if x["event_no"] == r["ev"]["event_no"]), ""),
+                   "decision": r["ev"]["decision"], **{k: v for k, v in r.items() if k != "ev"}} for r in mw.mlog]).to_csv(out / "events_marks.csv", index=False, encoding="utf-8-sig")
     q = lambda v, p: round(float(np.percentile(v, p)), 4) if len(v) else None
     cnt = {f"{op}_{d}": int(((ev.op == op) & (ev.decision == d)).sum()) if len(ev) else 0 for op in ("load", "unload") for d in ("cargo", "exclude")}
     st = dict(video=vid.name, mode=("no-drop" if a.no_drop else "realtime"), fps_source=round(fps, 3), duration_s=round(dur, 1), wall_s=round(wall, 1),
@@ -561,7 +581,7 @@ def main():
               decisions_changed_vs_beacon_rule=int((ev.decision != ev.decision_old_rule).sum()) if len(ev) else 0,
               eval_latency_s=dict(p50=q(eval_lat, 50), p95=q(eval_lat, 95), max=q(eval_lat, 100)),
               gpu_peak_alloc_mb=round(torch.cuda.max_memory_allocated() / 2**20), gpu=torch.cuda.get_device_name(0),
-              det_model=Path(a.model).name, mark_model=str(Path(a.mark_model).relative_to(ROOT)) if ROOT in Path(a.mark_model).resolve().parents else a.mark_model)
+              det_model=Path(a.model).name, mark_model=str(a.mark_model))
     if a.gt: st["eval"] = evaluate_gt(ev, a.gt, dur, out, t0=float(pts[start_f] - pts[0]))
     json.dump(st, open(out / "stats.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     write_report(out / "report.html", st, ev)

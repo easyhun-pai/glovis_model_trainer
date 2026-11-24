@@ -22,7 +22,8 @@ def eval_gt(ev, gt_path, reviewed_only, tol):
     g["t"] = g.time.map(mmss) + 0.5
     t_end = None
     if reviewed_only and "reviewed" in g:
-        t_end = float(g[g.reviewed == "1"].t.max()) + 1.5
+        lr = float(g[g.reviewed == "1"].t.max()); nx = g[(g.reviewed != "1") & (g.t > lr)].t
+        t_end = (lr + float(nx.min())) / 2 if len(nx) else lr + 1.5  # 검수된 마지막 행과 다음(미검수) 행의 중간까지
         g = g[g.reviewed == "1"]; ev = ev[ev.cross_s <= t_end]
     g = g.reset_index(drop=True); g["gdec"] = np.where(g.label == "cargo", "cargo", "exclude")
     used = set(); m = {}
@@ -39,6 +40,10 @@ def eval_gt(ev, gt_path, reviewed_only, tol):
     res.update(false=[f"{r.cross_time} {r.dir} {r.decision}" for r in ev[ev.gt_label == ""].itertuples()],
                missed=[f"{r.time} {r.dir} {r.label}" for r in g[~g.index.isin(used)].itertuples()],
                decision_wrong=[f"{r.cross_time} {r.dir} pred={r.decision} gt={r.gt_label} ({r.reason})" for r, x in zip(mm.itertuples(), gl) if x != r.decision])
+    E = [dict(time_s=r.cross_s, type="false", dir=r.dir, pred=r.decision, gt="-", reason=r.reason) for r in ev[ev.gt_label == ""].itertuples()]
+    E += [dict(time_s=r.t, type="missed", dir=r.dir, pred="-", gt=r.label, reason="") for r in g[~g.index.isin(used)].itertuples()]
+    E += [dict(time_s=r.cross_s, type="wrong", dir=r.dir, pred=r.decision, gt=r.gt_label, reason=r.reason) for r, x in zip(mm.itertuples(), gl) if x != r.decision]
+    res["_errors"] = E
     return res
 
 
@@ -75,11 +80,19 @@ def eval_seq(ev, seq_path):
     for k in R.index[R.op == "del"]:
         prev = R.pred_time[:k][R.pred_time[:k] != ""]; nxt = R.pred_time[k + 1:][R.pred_time[k + 1:] != ""]
         R.loc[k, "pred_time"] = f"({prev.iloc[-1] if len(prev) else '시작'} ~ {nxt.iloc[0] if len(nxt) else '끝'} 사이)"
+    E = []
+    for k in R.index[R.op != "match"]:
+        r = R.loc[k]
+        if r.op == "del":  # 미탐: 앞뒤 예측 시각의 중간
+            ps = R.pred_s; prev = ps[:k].dropna(); nxt = ps[k + 1:].dropna()
+            t = ((prev.iloc[-1] if len(prev) else 0) + (nxt.iloc[0] if len(nxt) else prev.iloc[-1] + 4)) / 2
+        else: t = r.pred_s
+        E.append(dict(time_s=float(t), type={"sub": "substitution", "ins": "insertion", "del": "deletion"}[r.op], dir=r.dir, pred=r["pred"] or "-", gt=r["gt"] or "-", reason=r["reason"]))
     cnt = lambda s: {"unload": s.count("0"), "load": s.count("1"), "exclude": s.count("2")}
     return R, dict(gt_len=len(gt), pred_len=len(pr), edit_distance=dist, gt_counts=cnt(gt), pred_counts=cnt(pr),
                    n_match=int((R.op == "match").sum()), n_sub=int((R.op == "sub").sum()), n_ins=int((R.op == "ins").sum()), n_del=int((R.op == "del").sum()),
                    errors=[f"{r.op}: 정답#{'' if r.gt_pos is None or pd.isna(r.gt_pos) else int(r.gt_pos)} {r.gt or '-'} / 예측 {r.pred or '-'} {r.pred_time} {r.dir}"
-                           for r in R[R.op != "match"].itertuples()])
+                           for r in R[R.op != "match"].itertuples()], _errors=E)
 
 
 def main():
@@ -90,6 +103,7 @@ def main():
     if a.gt: res = eval_gt(ev, a.gt, a.reviewed_only, a.tol)
     else:
         R, res = eval_seq(ev, a.seq); R.to_csv(run / "eval_seq.csv", index=False, encoding="utf-8-sig")
+    pd.DataFrame(res.pop("_errors"), columns=["time_s", "type", "dir", "pred", "gt", "reason"]).to_csv(run / "eval_errors.csv", index=False, encoding="utf-8-sig")
     json.dump(res, open(run / "eval_gt.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(json.dumps(res, ensure_ascii=False, indent=1))
 
