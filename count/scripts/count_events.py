@@ -82,6 +82,7 @@ def build_chains(T, max_gap_f, base_r, occl=None):
             va = A["v_end"]; sp = np.linalg.norm(va)
             if sp < 2: continue  # 정지 트랙(주차 차량)은 연결 대상 아님
             if np.dot(va, B["v_start"]) <= 0: continue  # 진행 방향 불일치
+            if np.linalg.norm(B["v_start"]) < 2: continue  # 멈춰 있는 조각(램프 벽면 오검출 등)에는 잇지 않음
             pred_pos = A["p"][-1] + va * gap
             d = np.linalg.norm(B["p"][0] - pred_pos)
             if d <= base_r + 0.5 * sp * gap and (best is None or d < best[0]):

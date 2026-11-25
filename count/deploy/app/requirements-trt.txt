@@ -1,0 +1,4 @@
+# TensorRT 가속 (선택). 실패해도 PyTorch 로 실행된다.
+tensorrt-cu12==10.13.3.9.post1
+onnx==1.23.2
+onnxslim==0.1.99

@@ -93,6 +93,48 @@ RTSP 프레임 ─► [1단계] yolo26m(COCO) + ByteTrack ─► 트랙 체인(I
 남은 약점: 반대 방향으로 엇갈리는 차량 사이의 트랙 섞임, 번호판이 뒤에만 있는 작업 트럭(선 통과 전에는 안 보임),
 창문 번호 오탐(정밀도 0.5 안팎).
 
+### 표식 모델별 비교 (미사용 영상 4개, 차량 309대)
+
+| 모델 | 학습 데이터 | 정확 |
+|---|---|---|
+| r1 | 자동 초안(참조 1장) | 299 (96.8%) |
+| r2 | 개선 자동 초안(참조 4장 · 이동 규칙) | 304 (98.4%) |
+| r3 | 사람이 박스 수정한 정답 + 자동 라벨 | **305 (98.7%)** |
+
+`model_compare.py` 로 생성. 처리 시간은 세 모델 동일 (같은 구조).
+
+## 추적 보정과 TensorRT (2026-11-25)
+
+**칼만 예측 프레임 간격 보정** (`kalman_gap.py`). ByteTrack 은 update 1회를 1프레임으로 가정해,
+실시간 처리에서 프레임을 k장 건너뛰면 예측이 실제 위치보다 뒤처지고 lost 트랙 보관 시간도 실제보다 길어진다.
+건너뛴 만큼 칼만 예측을 1+k 번 돌리고 `frame_id` 를 k 올린다. 같은 시드로 프레임을 버리는 재현 모드(`realtime_sim.py --sim-drop`)로 비교:
+
+| 영상 · 버린 프레임 | 보정 없음 | 보정 | 기준 (안 버림) |
+|---|---|---|---|
+| 260818 s1 · 30% | 미탐 19, 판정 오류 1 | **미탐 2, 판정 오류 0** | 미탐 2, 판정 오류 0 |
+| 260701 s3 · 50% | 미탐 5, 판정 오류 1 | **미탐 2, 판정 오류 1** | 미탐 0 |
+| 260701 s3 · 30% | 미탐 1, 판정 오류 2 | **미탐 1, 판정 오류 1** | 미탐 0 |
+
+**트랙 조각 규칙.** 지나가던 차의 id 가 램프 구조물 벽면 오검출(약 1100x250 박스)로 넘어가 1대가 더 세지는 경우가 있어,
+같은 id 의 박스 종횡비가 1.8배 넘게 바뀌면 조각을 나누고(정상 트랙 약 9.8만 쌍에서 최대 1.59배), 멈춰 있는 조각에는 잇지 않는다.
+프레임을 안 버리는 회귀 평가 4개 영상에서 결과 변화 없음.
+
+**TensorRT (FP16).** 차량 탐지 프레임당 33~40 → 22~30 ms, 표식 판정 차량당 100~200 → 90~115 ms, GPU 메모리 330 → 204 MB.
+이벤트는 4개 영상 모두 동일. 판정은 260701 s3 의 작업 트럭 1대만 갈렸다 (창문 번호 오탐 2장에 기대던 경계 사례, 고른 크롭이 1프레임 달라짐).
+
+**기각: 선 통과 후 재판정.** 선을 넘은 뒤 크롭으로 다시 판정해 화물 → 제외로 바꾸는 방식을 기록 전용으로 측정
+(`--post-check`): 고친 대수 0, 새 오류 1, 차량당 GPU 70~90 ms 추가 → 채택 안 함.
+
+**테스트** (GPU 불필요): `test_kalman_gap.py [--core]`, `test_tracking_rules.py`, `test_deploy_core.py [--gpu]`.
+`--core` 는 배포 패키지에 복사된 구현을 같은 입력으로 검사한다.
+
+## 현장 배포 패키지 (`count/deploy/`)
+
+저장소에 의존하지 않는 실행 패키지. RTSP 입력 → 실시간 카운트 → 로컬 DB(SQLite) + 차량별 통과 스크린샷 · 전후 1.5초 클립.
+Ubuntu 22.04/24.04 (`install.sh`, 자동 실행 등록) 와 Windows (`windows/*.bat`) 지원. 시작할 때 현재 화각에서 기준선을 긋는다.
+TensorRT 엔진은 현장 GPU 에서 처음 실행 때 자동 생성, 실패하면 PyTorch 로 실행. 자세한 내용은 [deploy/README.md](deploy/README.md).
+모델 가중치는 저장소에 넣지 않고 배포 zip 을 만들 때 `count/models/marks_r3.pt` 와 사전학습 `yolo26m.pt` 를 `deploy/models/` 에 넣는다.
+
 ---
 
 ## 데이터 분할 원칙
@@ -113,6 +155,7 @@ count/
 ├── scripts/   # 파이프라인 (아래 표)
 ├── web/       # 검수 웹페이지 (차량 이벤트·표식 판정·표식 박스 수정)
 ├── models/    # 표식 탐지 배포 모델
+├── deploy/    # 현장 실행 패키지 (RTSP · DB · 기준선 설정 · Ubuntu/Windows)
 └── docs/
 ```
 
@@ -127,5 +170,6 @@ count/
 | 표식 크롭·초안 | `extract_mark_crops.py`, `draft_marks.py`, `draft_marks2.py`, `filter_marks.py`, `fill_marks.py`, `merge_marks.py` |
 | 표식 검수·정답 | `build_marks_review.py`, `build_marks_edit.py`, `eval_marks.py`, `make_r3_labels.py` |
 | 학습 데이터 | `make_marks_dataset.py` |
-| 실시간·평가 | `realtime_sim.py`, `eval_rt.py`, `replay_rule.py`, `render_demo.py` |
+| 실시간·평가 | `realtime_sim.py`, `eval_rt.py`, `replay_rule.py`, `render_demo.py`, `model_compare.py` |
+| 추적 보정·테스트 | `kalman_gap.py`, `test_kalman_gap.py`, `test_tracking_rules.py`, `test_deploy_core.py` |
 | 실험(기각) | `exp_plate_zeroshot.py`, `exp_embed_cls.py` |

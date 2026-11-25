@@ -1,0 +1,52 @@
+{
+  "camera_id": "ramp_cam1",
+  "source": "rtsp://아이디:비밀번호@카메라IP:554/스트림경로",
+  "fps": null,
+  "show_window": true,
+  "display_width": 1280,
+  "confirm_line_on_start": true,
+  "line_confirm_timeout_s": 15,
+  "line": null,
+  "file_realtime": true,
+  "save_screenshots": true,
+  "save_clips": true,
+  "save_crops": true,
+  "clip_pre_s": 1.5,
+  "clip_post_s": 1.5,
+  "media_width": 1280,
+  "log_dir": "logs",
+  "replay_guard": true,
+  "models": {
+    "vehicle": "models/yolo26m.pt",
+    "marks": "models/marks_r3.pt"
+  },
+  "use_tensorrt": true,
+  "kalman_gap": true,
+  "params": {
+    "imgsz": 640,
+    "det_conf": 0.2,
+    "min_h": 150,
+    "split_x": 250,
+    "edge_x": 40,
+    "link_r": 300,
+    "min_travel": 300,
+    "occl_r": 800,
+    "max_gap_s": 1.5,
+    "occl_gap_s": 1.0,
+    "min_gap_s": 3.0,
+    "dup_gap_s": 0.6,
+    "finalize_s": 0.7,
+    "u_range": [
+      -0.5,
+      1.1
+    ],
+    "min_crops": 3,
+    "cross_grace_s": 0.5,
+    "crops_per_vehicle": 8,
+    "keep_crops": 24,
+    "pad_x": 0.06,
+    "pad_top": 0.3,
+    "mark_conf": 0.5,
+    "mark_min_crops": 2
+  }
+}

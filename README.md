@@ -23,6 +23,7 @@ glovis_model_trainer/
 │   ├── scripts/          트랙 체인·통과 판정·표식 라벨링·실시간 시뮬레이터
 │   ├── web/              검수 웹페이지 (차량 이벤트·표식 판정·박스 수정)
 │   ├── models/           표식 탐지 배포 모델 (.pt)
+│   ├── deploy/           현장 실행 패키지 (RTSP 실시간 카운트 · DB · Ubuntu/Windows)
 │   └── docs/
 ├── requirements.txt
 │

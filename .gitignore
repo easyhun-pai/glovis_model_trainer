@@ -35,6 +35,8 @@ _etc/
 # output*: "output c=0.5" 같은 실험 출력 폴더
 runs/
 output*/
+# 배포 패키지 실행 기록 (count/deploy/models/*.pt 는 위 *.pt 규칙으로 제외, 배포 zip 에만 포함)
+count/deploy/logs*/
 wandb/
 lightning_logs/
 

@@ -26,9 +26,11 @@ from ultralytics import YOLO
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from count_events import frame_pts, track_table, build_chains  # noqa: E402
+import kalman_gap  # noqa: E402
 
 VEHICLE = [2, 5, 7]
 CLS = {0: "plate", 1: "beacon", 2: "number"}
+AR_JUMP = 1.8                            # 트랙 조각 분리: 연속 검출 간 가로세로 비율 변화 상한
 
 
 # ---------------------------------------------------------------- 스트림 리더
@@ -251,14 +253,14 @@ def beacon_ok_idx(D):
 class MarkWorker(threading.Thread):
     def __init__(self, model, conf, min_frames, imgsz=640):
         super().__init__(daemon=True)
-        self.m = YOLO(model); self.conf = conf; self.min_frames = min_frames; self.imgsz = imgsz
-        self.q = queue.Queue(); self.out = []; self.lat = []; self.motion = "all"; self.dropped = {v: 0 for v in CLS.values()}; self.mlog = []
+        self.m = YOLO(model, task="detect"); self.conf = conf; self.min_frames = min_frames; self.imgsz = imgsz
+        self.q = queue.Queue(); self.out = []; self.lat = []; self.motion = "all"; self.dropped = {v: 0 for v in CLS.values()}; self.mlog = []; self.post_lat = []
 
     def run(self):
         while True:
             job = self.q.get()
             if job is None: break
-            ev, crops, cb = job; t = time.perf_counter()
+            ev, crops, cb = job[:3]; tag = job[3] if len(job) > 3 else None; t = time.perf_counter()
             res = self.m.predict([c["img"] for c in crops], imgsz=self.imgsz, conf=0.25, half=True, verbose=False) if crops else []
             D = []  # (crop_i, cls, conf, gx, gy, bx1, bx2, vw, rx, ry)
             for i, (c, r) in enumerate(zip(crops, res)):
@@ -277,10 +279,14 @@ class MarkWorker(threading.Thread):
             hits = decide(static); hits_old = decide(old_static)
             nf = len(hits); excl = nf >= self.min_frames; excl_old = len(hits_old) >= self.min_frames
             dropped = {CLS[k]: sum(1 for n in static if D[n][1] == k) for k in CLS}
-            for k, v in dropped.items(): self.dropped[k] += v
+            if tag is None:
+                for k, v in dropped.items(): self.dropped[k] += v
             cnt = {k: sum(k in s for s in hits.values()) for k in ("plate", "beacon", "number")}
             dd = " ".join(f"{k}{v}" for k, v in dropped.items() if v)
             reason = " ".join(f"{k}{v}" for k, v in cnt.items() if v) + (f" (고정 표식 버림 {dd})" if dd else "")
+            if tag is not None:  # 선 통과 후 재판정(기록 전용): ev 판정·로그는 건드리지 않음
+                dt = time.perf_counter() - t; self.post_lat.append(dt)
+                cb(ev, tag, "exclude" if excl else "cargo", f"{nf}/{len(crops)} 크롭: {reason}".strip(), len(crops), dt); continue
             ev["decision_old_rule"] = "exclude" if excl_old else "cargo"; ev["static_dropped"] = dd; ev["marks"] = cnt
             # 기록 전용(판정에 영향 없음): 크롭별·종류별 최대 conf — raw(≥0.25, 이동 규칙 전) / kept(≥veh_conf, 이동 규칙 후) / static(버린 수)
             for i, (c, r) in enumerate(zip(crops, res)):
@@ -305,6 +311,14 @@ class RawTrack:
         self.rows.append(row); self.piece.append(self.k); x = (row[3] + row[5]) / 2; i = len(self.rows) - 1
         xs = lambda j: (self.rows[j][3] + self.rows[j][5]) / 2
         if i == 0: return
+        # 박스 모양(가로/세로)이 1.8배 넘게 급변 → 추적 id 가 다른 물체(램프 벽면 등)로 넘어간 것 → 새 조각.
+        # 프레임 간격과 무관하게 비교 (lost 됐다가 벽면 박스로 재활성되는 경우 포함).
+        # 정상 트랙 연속 검출 약 9.8만 쌍(5개 영상, 간격 1~90프레임)에서 최대 1.59배 (2026-11-25 측정).
+        p, q = self.rows[i - 1], self.rows[i]
+        ar = lambda r: max(1.0, r[5] - r[3]) / max(1.0, r[6] - r[4])
+        if max(ar(p) / ar(q), ar(q) / ar(p)) > AR_JUMP:
+            self.k += 1; self.piece[i] = self.k; self.d = 0; self.ext = i
+            return
         if self.d == 0:
             if abs(x - xs(self.ext)) >= thr: self.d = int(np.sign(x - xs(self.ext))); self.ext = i
         elif (x - xs(self.ext)) * self.d > 0: self.ext = i
@@ -324,6 +338,7 @@ def main():
     ap.add_argument("--mark-model", default=str(ROOT / "runs/count/marks/r1/weights/best.pt"))
     ap.add_argument("--out", default=None)
     ap.add_argument("--imgsz", type=int, default=640); ap.add_argument("--conf", type=float, default=0.2)
+    ap.add_argument("--det-imgsz", type=int, nargs=2, default=None, help="차량 탐지 입력 H W (TensorRT 엔진은 만든 크기와 같아야 함, 예: 384 640)")
     ap.add_argument("--tracker", default="bytetrack.yaml")
     ap.add_argument("--no-drop", action="store_true", help="모든 프레임 처리(실시간 배율만 측정)")
     ap.add_argument("--max-seconds", type=float, default=0, help="이 길이(초)만 처리")
@@ -356,8 +371,14 @@ def main():
     ap.add_argument("--veh-conf", type=float, default=0.5); ap.add_argument("--min-frames", type=int, default=2)
     ap.add_argument("--gt", default=None, help="gt_rev csv (있으면 이벤트 매칭 평가)")
     ap.add_argument("--final-holdout", action="store_true", help="검증용 영상 최종 평가 때만")
+    ap.add_argument("--no-kalman-gap", action="store_true", help="칼만 예측의 건너뛴 프레임 보정 끄기 (비교용)")
+    ap.add_argument("--sim-drop", type=float, default=0.0, help="QA: 이 확률로 프레임을 버린 것처럼 건너뜀 (--no-drop 과 함께, 재현 가능)")
+    ap.add_argument("--sim-drop-seed", type=int, default=0)
+    ap.add_argument("--post-check", action="store_true", help="기록 전용: 체인 확정 때 선 통과 후 크롭으로 다시 판정해 events.csv 에 남김. "
+                    "판정은 안 바꾸지만 같은 GPU·큐를 써서 판정 지연이 늘고, 실시간 모드에선 버리는 프레임이 달라질 수 있음 → --no-drop 과만 쓸 것")
     a = ap.parse_args()
 
+    if a.post_check and not a.no_drop: raise SystemExit("--post-check 는 --no-drop 과 함께만 (실시간 모드에선 카운트가 달라질 수 있음)")
     vid = Path(a.video)
     if "검증용" in str(vid) and not a.final_holdout:
         raise SystemExit("홀드아웃(검증용) 영상은 --final-holdout 없이 실행하지 않습니다")
@@ -375,7 +396,8 @@ def main():
     dur = float(pts[min(len(pts), max_frames or len(pts)) - 1] - pts[start_f])
     print(f"{vid.name}: {fps:.2f}fps {W}x{H}, 길이 {dur/60:.1f}분, mode={'no-drop' if a.no_drop else 'realtime'}", flush=True)
 
-    det = YOLO(a.model)
+    det = YOLO(a.model, task="detect")
+    if a.det_imgsz: a.imgsz = list(a.det_imgsz)
     det.predict(np.zeros((H, W, 3), np.uint8), imgsz=a.imgsz, half=True, verbose=False)  # 워밍업 (추적기는 첫 track 호출에서 새로 생성)
     mw = MarkWorker(a.mark_model, a.veh_conf, a.min_frames)
     mw.m.predict(np.zeros((640, 640, 3), np.uint8), imgsz=640, half=True, verbose=False); mw.start()
@@ -386,6 +408,9 @@ def main():
 
     def wall_of(fr):  # 그 프레임이 카메라에서 도착한 벽시계 시각(리더 시작 기준)
         return reader.t0 + (pts[min(fr, len(pts) - 1)] - pts[start_f])
+
+    def on_post(ev, tag, dec, reason, n, dt):
+        with ev_lock: ev.update({f"{tag}_dec": dec, f"{tag}_reason": reason, f"{tag}_n": n, f"{tag}_s": round(dt, 3)})
 
     def on_decision(ev, dec, reason, dt):
         with ev_lock:
@@ -404,7 +429,7 @@ def main():
                 rows.append((r[0], pid, r[1], r[2], r[3], r[4], r[5], r[6]))
         return pd.DataFrame(rows, columns=["frame", "tid", "cls", "conf", "x1", "y1", "x2", "y2"])
 
-    def crops_for(chain):
+    def crops_for(chain, after=None):
         cs = []
         for pid in chain:
             rt = raw.get(pid % 1000000)
@@ -412,6 +437,7 @@ def main():
             k = pid // 1000000
             cs += [c for j, c in rt.crops.items() if rt.piece[j] == k]
         cs.sort(key=lambda c: c["frame"])
+        if after is not None: cs = [c for c in cs if c["frame"] > after]
         if len(cs) > a.k: cs = [cs[i] for i in np.unique(np.linspace(0, len(cs) - 1, a.k).round().astype(int))]
         return cs
 
@@ -485,6 +511,12 @@ def main():
             if not any(t in emitted for t in c):
                 x = crossing(c, T, allow_edge=True)
                 if x: emit(c, x[0], x[1], now_f, final=True)
+            if a.post_check:
+                e = next((emitted[t] for t in c if t in emitted), None)
+                if e is not None and not e.get("post_sent"):
+                    e["post_sent"] = True
+                    mw.q.put((e, crops_for(c, after=e["frame"]), on_post, "post"))
+                    mw.q.put((e, crops_for(c), on_post, "all"))
             consumed.update(c)
         # grace 가 끝났거나 크롭이 모인 판정 보내기
         for q in list(pending_dec):
@@ -503,16 +535,23 @@ def main():
     rd = Renderer(a, W, H, fps, LA, LB, pts) if a.render else None
     reader = Reader(vid, pts, a.no_drop, max_frames, start_f); reader.start()
     while reader.t0 is None: time.sleep(0.01)
-    proc = 0; last_eval = -1; tlog = time.perf_counter()
+    proc = 0; last_eval = -1; tlog = time.perf_counter(); last_proc = None; sim_dropped = 0; gaps = []
+    drop_rng = np.random.default_rng(a.sim_drop_seed)
     while True:
         x = reader.get()
         if x is None: break
         fi, img, t_arr = x
         t = time.perf_counter(); age.append(t - t_arr)
+        if a.sim_drop and last_proc is not None and drop_rng.random() < a.sim_drop:
+            sim_dropped += 1; continue  # QA: 처리가 밀려 버린 프레임 흉내 (추적기·재전송 감지기에 안 보여 줌)
         if rg is not None and rg.check(img, fi, float(pts[min(fi, len(pts) - 1)] - pts[0])) and a.replay == "skip":
             replay_skipped += 1; continue
+        tr = kalman_gap.tracker_of(det)
+        if tr is not None and last_proc is not None:
+            g = fi - last_proc - 1; gaps.append(g)
+            if not a.no_kalman_gap: kalman_gap.set_gap(tr, g)
         r = det.track(img, persist=True, imgsz=a.imgsz, conf=a.conf, classes=VEHICLE, tracker=a.tracker, half=True, verbose=False)[0]
-        det_lat.append(time.perf_counter() - t); proc += 1
+        det_lat.append(time.perf_counter() - t); proc += 1; last_proc = fi
         if r.boxes.id is not None:
             for (x1, y1, x2, y2), tid, cl, cf in zip(r.boxes.xyxy.tolist(), r.boxes.id.int().tolist(), r.boxes.cls.int().tolist(), r.boxes.conf.tolist()):
                 rt = raw.get(tid)
@@ -556,7 +595,8 @@ def main():
         rows.append(dict(event_no=e["event_no"], cross_time=f"{int(ct//60):02d}:{int(ct%60):02d}", cross_s=round(ct, 1), dir=e["dir"],
                          op="load" if e["dir"] == "R2L" else "unload", decision=e["decision"], reason=e["reason"], chain=e["chain"],
                          decided_at=round(e["decided_wall"] - reader.t0, 1), latency_s=round(e["decided_wall"] - wall_of(e["frame"]), 1),
-                         mark_s=e["mark_s"], n_crops=e["n_crops"], emit_latency_s=round(e["emit_wall"] - wall_of(e["frame"]), 2), late=bool(e["late"]), decision_old_rule=e.get("decision_old_rule"), static_dropped=e.get("static_dropped", "")))
+                         mark_s=e["mark_s"], n_crops=e["n_crops"], emit_latency_s=round(e["emit_wall"] - wall_of(e["frame"]), 2), late=bool(e["late"]), decision_old_rule=e.get("decision_old_rule"), static_dropped=e.get("static_dropped", ""),
+                         **{k: e.get(k) for k in ("post_dec", "post_reason", "post_n", "post_s", "all_dec", "all_reason", "all_n", "all_s") if a.post_check}))
     ev = pd.DataFrame(rows); ev.to_csv(out / "events.csv", index=False, encoding="utf-8-sig")
     pd.DataFrame([{"event_no": r["ev"]["event_no"], "cross_time": next((x["cross_time"] for x in rows if x["event_no"] == r["ev"]["event_no"]), ""),
                    "decision": r["ev"]["decision"], **{k: v for k, v in r.items() if k != "ev"}} for r in mw.mlog]).to_csv(out / "events_marks.csv", index=False, encoding="utf-8-sig")
@@ -578,6 +618,10 @@ def main():
               replay=dict(mode=a.replay, segments=(rg.segments + ([rg.cur] if rg and rg.cur else [])) if rg else [], frames_skipped=replay_skipped,
                           cost_ms_p50=q([x * 1000 for x in rg.cost], 50) if rg else None, cost_ms_p95=q([x * 1000 for x in rg.cost], 95) if rg else None),
               motion_rule="all", static_marks_dropped=mw.dropped,
+              kalman_gap=not a.no_kalman_gap, sim_drop=a.sim_drop, sim_dropped=sim_dropped,
+              gap_hist={int(k): int(v) for k, v in zip(*np.unique(gaps, return_counts=True))} if gaps else {},
+              post_check_latency_s=dict(p50=q(mw.post_lat, 50), p95=q(mw.post_lat, 95), n=len(mw.post_lat)) if a.post_check else None,
+              tracking_rules=dict(ar_jump=AR_JUMP, link_requires_moving=True),
               decisions_changed_vs_beacon_rule=int((ev.decision != ev.decision_old_rule).sum()) if len(ev) else 0,
               eval_latency_s=dict(p50=q(eval_lat, 50), p95=q(eval_lat, 95), max=q(eval_lat, 100)),
               gpu_peak_alloc_mb=round(torch.cuda.max_memory_allocated() / 2**20), gpu=torch.cuda.get_device_name(0),

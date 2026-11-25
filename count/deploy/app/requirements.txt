@@ -1,0 +1,8 @@
+# PyTorch(GPU)는 install.sh (Windows: windows\install.bat) 에서 CUDA 버전에 맞춰 먼저 설치한다.
+ultralytics==8.4.37
+opencv-python==4.13.0.92
+numpy==2.4.3
+pandas==2.3.3
+Pillow==12.1.1
+lap==0.5.14
+imageio-ffmpeg==0.6.0
